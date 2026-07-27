@@ -3,153 +3,52 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Локальное распознавание рукописных русских букв прямо в браузере.">
+  <meta name="description" content="Создание русского рукописного шрифта и печатного PDF-шаблона прямо в браузере.">
   <title>Draw Your Font RU</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="template.css">
 </head>
 <body>
   <header class="topbar">
-    <div>
-      <p class="eyebrow">Локально · Без загрузки на сервер</p>
-      <h1>Draw Your Font RU</h1>
-      <p class="subtitle">Загрузите фотографию рукописного алфавита, очистите фон и проверьте найденные символы.</p>
-    </div>
-    <div class="stage-badge">
-      <span>Этап 1</span>
-      <strong>Распознавание и разметка</strong>
-    </div>
+    <div><p class="eyebrow">Локально · Без загрузки на сервер</p><h1>Draw Your Font RU</h1><p class="subtitle">Распечатайте русский шаблон, заполните его от руки и загрузите фотографию для разметки.</p></div>
+    <div class="stage-badge"><span>Этапы 1-2</span><strong>Шаблон и распознавание</strong></div>
   </header>
-
   <main class="workspace">
     <aside class="sidebar card">
+      <section><h2>1. Фотография</h2><label class="dropzone" id="dropzone" for="fileInput"><input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif"><span class="dropzone-title">Выберите или перетащите фото</span><span class="dropzone-note">PNG, JPG, WEBP. Изображение обрабатывается только на вашем устройстве.</span></label><div class="file-meta" id="fileMeta">Файл ещё не выбран</div></section>
       <section>
-        <h2>1. Фотография</h2>
-        <label class="dropzone" id="dropzone" for="fileInput">
-          <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif">
-          <span class="dropzone-title">Выберите или перетащите фото</span>
-          <span class="dropzone-note">PNG, JPG, WEBP. Изображение обрабатывается только на вашем устройстве.</span>
-        </label>
-        <div class="file-meta" id="fileMeta">Файл ещё не выбран</div>
-      </section>
-
-      <section>
-        <div class="section-title-row">
-          <h2>2. Очистка</h2>
-          <button class="text-button" id="resetSettings" type="button">По умолчанию</button>
-        </div>
-
-        <label class="control-row">
-          <span>Отделение чернил <output id="thresholdDeltaValue">34</output></span>
-          <input id="thresholdDelta" type="range" min="8" max="90" value="34">
-          <small>Больше значение убирает слабые тени, но может съесть светлые штрихи.</small>
-        </label>
-
-        <label class="control-row">
-          <span>Максимальная яркость чернил <output id="absoluteCapValue">195</output></span>
-          <input id="absoluteCap" type="range" min="70" max="245" value="195">
-          <small>Уменьшите, если клетки и линии бумаги принимаются за буквы.</small>
-        </label>
-
-        <label class="control-row">
-          <span>Размер области фона <output id="backgroundRadiusValue">34</output></span>
-          <input id="backgroundRadius" type="range" min="6" max="100" value="34">
-          <small>Большая область лучше компенсирует широкие тени.</small>
-        </label>
-
-        <label class="control-row">
-          <span>Минимальная площадь <output id="minAreaValue">18</output></span>
-          <input id="minArea" type="range" min="3" max="300" value="18">
-          <small>Поднимите значение, если остаётся точечный шум.</small>
-        </label>
-
-        <label class="control-row">
-          <span>Объединение частей <output id="mergeStrengthValue">55</output></span>
-          <input id="mergeStrength" type="range" min="0" max="100" value="55">
-          <small>Отвечает за точки Ё/Й и разорванные штрихи.</small>
-        </label>
-
-        <label class="checkbox-row">
-          <input id="closeMask" type="checkbox" checked>
-          <span>Залечивать небольшие разрывы штрихов</span>
-        </label>
-
+        <div class="section-title-row"><h2>2. Очистка</h2><button class="text-button" id="resetSettings" type="button">По умолчанию</button></div>
+        <label class="control-row"><span>Отделение чернил <output id="thresholdDeltaValue">34</output></span><input id="thresholdDelta" type="range" min="8" max="90" value="34"><small>Больше значение убирает слабые тени, но может съесть светлые штрихи.</small></label>
+        <label class="control-row"><span>Максимальная яркость чернил <output id="absoluteCapValue">195</output></span><input id="absoluteCap" type="range" min="70" max="245" value="195"><small>Уменьшите, если клетки и линии бумаги принимаются за буквы.</small></label>
+        <label class="control-row"><span>Размер области фона <output id="backgroundRadiusValue">34</output></span><input id="backgroundRadius" type="range" min="6" max="100" value="34"><small>Большая область лучше компенсирует широкие тени.</small></label>
+        <label class="control-row"><span>Минимальная площадь <output id="minAreaValue">18</output></span><input id="minArea" type="range" min="3" max="300" value="18"><small>Поднимите значение, если остаётся точечный шум.</small></label>
+        <label class="control-row"><span>Объединение частей <output id="mergeStrengthValue">55</output></span><input id="mergeStrength" type="range" min="0" max="100" value="55"><small>Отвечает за точки Ё/Й и разорванные штрихи.</small></label>
+        <label class="checkbox-row"><input id="closeMask" type="checkbox" checked><span>Залечивать небольшие разрывы штрихов</span></label>
         <button class="primary-button" id="processButton" type="button" disabled>Найти буквы</button>
       </section>
-
-      <section>
-        <h2>3. Подписи</h2>
-        <label class="select-label" for="charsetSelect">Набор символов</label>
-        <select id="charsetSelect">
-          <option value="ru-full">Русский: заглавные + строчные + цифры</option>
-          <option value="ru-upper">Русский: только заглавные</option>
-          <option value="ru-lower">Русский: только строчные</option>
-          <option value="custom">Свой порядок</option>
-        </select>
-        <textarea id="customCharset" rows="3" hidden aria-label="Свой порядок символов"></textarea>
-        <button class="secondary-button" id="assignLabels" type="button" disabled>Расставить подписи по порядку</button>
-      </section>
+      <section><h2>3. Подписи</h2><label class="select-label" for="charsetSelect">Набор символов</label><select id="charsetSelect"><option value="ru-full">Русский: заглавные + строчные + цифры</option><option value="ru-upper">Русский: только заглавные</option><option value="ru-lower">Русский: только строчные</option><option value="custom">Свой порядок</option></select><textarea id="customCharset" rows="3" hidden aria-label="Свой порядок символов"></textarea><button class="secondary-button" id="assignLabels" type="button" disabled>Расставить подписи по порядку</button></section>
     </aside>
-
     <section class="main-panel">
-      <div class="card viewer-card">
-        <div class="viewer-toolbar">
-          <div class="view-tabs" role="tablist" aria-label="Режим просмотра">
-            <button class="tab is-active" data-view="overlay" type="button">Разметка</button>
-            <button class="tab" data-view="original" type="button">Оригинал</button>
-            <button class="tab" data-view="mask" type="button">Маска</button>
-            <button class="tab" data-view="background" type="button">Фон</button>
+      <section class="card template-card" id="templateBuilder">
+        <header class="template-header"><div><p class="eyebrow">Печатный шаблон</p><h2>Создайте русские листы A4</h2><p>PDF формируется прямо в браузере. Метки по углам, нумерация и направляющие подготовлены для последующей фотографии и автоматической обработки.</p></div><span class="template-stage">Этап 2</span></header>
+        <div class="template-builder-grid">
+          <div class="template-controls">
+            <label class="template-field"><span>Название шрифта</span><input id="templateTitle" type="text" value="Мой русский шрифт" maxlength="80"></label>
+            <label class="template-field"><span>Набор символов</span><select id="templateCharset"><option value="ru-full">Русский полный: 88 символов</option><option value="ru-letters">Русские буквы: 66 символов</option><option value="ru-upper">Только заглавные: 33 символа</option><option value="ru-lower">Только строчные: 33 символа</option><option value="ru-extended">Расширенный: 98 символов</option><option value="custom">Свой набор</option></select><textarea id="templateCustomCharset" rows="4" hidden placeholder="Введите символы в нужном порядке"></textarea></label>
+            <label class="template-field"><span>Размер ячеек</span><select id="templateLayout"><option value="balanced">Оптимальный: 6 × 8</option><option value="compact">Компактный: 7 × 7</option><option value="standard">Свободный: 6 × 7</option><option value="large">Крупный: 5 × 7</option></select></label>
+            <label class="template-check"><input id="templateGuides" type="checkbox" checked><span>Показывать базовую линию, высоту строчных и центр ячейки</span></label>
+            <div class="template-summary" id="templateSummary">Подготовка шаблона…</div>
+            <button class="primary-button template-download" id="templateDownload" type="button">Скачать PDF-шаблон</button>
+            <progress class="template-progress" id="templateProgress" value="0" max="1" hidden></progress><p class="template-status" id="templateStatus" data-mode="idle">Подготовка шаблона…</p>
           </div>
-          <div class="zoom-note">Нажмите на рамку, чтобы выбрать символ</div>
+          <div class="template-preview-panel"><div class="template-preview-toolbar"><span class="template-page-label" id="templatePageLabel">Страница 1</span><div><button class="secondary-button compact" id="templatePrevious" type="button">Назад</button><button class="secondary-button compact" id="templateNext" type="button">Дальше</button></div></div><div class="template-preview-shell"><canvas id="templatePreview" width="595" height="842"></canvas></div></div>
         </div>
-
-        <div class="canvas-shell" id="canvasShell">
-          <canvas id="imageCanvas" width="1200" height="720"></canvas>
-          <div class="empty-state" id="emptyState">
-            <strong>Здесь появится фотография</strong>
-            <span>Лучший результат даёт тёмная ручка, белая бумага и расстояние между буквами.</span>
-          </div>
-        </div>
-
-        <div class="status-line" aria-live="polite">
-          <span class="status-dot" id="statusDot"></span>
-          <span id="statusText">Ожидание фотографии</span>
-        </div>
-      </div>
-
-      <div class="card results-card">
-        <div class="results-header">
-          <div>
-            <p class="eyebrow">Результат</p>
-            <h2>Найденные символы</h2>
-          </div>
-          <div class="stats" id="stats">
-            <span><strong>0</strong> символов</span>
-            <span><strong>0</strong> строк</span>
-          </div>
-        </div>
-
-        <div class="selection-toolbar">
-          <span id="selectionInfo">Ничего не выбрано</span>
-          <div>
-            <button class="secondary-button compact" id="mergeSelected" type="button" disabled>Объединить</button>
-            <button class="secondary-button compact" id="splitSelected" type="button" disabled>Разделить</button>
-            <button class="danger-button compact" id="removeSelected" type="button" disabled>Удалить</button>
-            <button class="secondary-button compact" id="restoreDetection" type="button" disabled>Сбросить правки</button>
-          </div>
-        </div>
-
-        <div class="glyph-grid" id="glyphGrid">
-          <div class="results-empty">После анализа здесь появятся отдельные буквы.</div>
-        </div>
-
-        <div class="export-row">
-          <p>Экспорт сохраняет рамки, порядок, подписи и параметры обработки. Фото в JSON не включается.</p>
-          <button class="secondary-button" id="exportManifest" type="button" disabled>Скачать разметку JSON</button>
-        </div>
-      </div>
+      </section>
+      <div class="card viewer-card"><div class="viewer-toolbar"><div class="view-tabs" role="tablist" aria-label="Режим просмотра"><button class="tab is-active" data-view="overlay" type="button">Разметка</button><button class="tab" data-view="original" type="button">Оригинал</button><button class="tab" data-view="mask" type="button">Маска</button><button class="tab" data-view="background" type="button">Фон</button></div><div class="zoom-note">Нажмите на рамку, чтобы выбрать символ</div></div><div class="canvas-shell" id="canvasShell"><canvas id="imageCanvas" width="1200" height="720"></canvas><div class="empty-state" id="emptyState"><strong>Здесь появится фотография</strong><span>Лучший результат даёт тёмная ручка, белая бумага и расстояние между буквами.</span></div></div><div class="status-line" aria-live="polite"><span class="status-dot" id="statusDot"></span><span id="statusText">Ожидание фотографии</span></div></div>
+      <div class="card results-card"><div class="results-header"><div><p class="eyebrow">Результат</p><h2>Найденные символы</h2></div><div class="stats" id="stats"><span><strong>0</strong> символов</span><span><strong>0</strong> строк</span></div></div><div class="selection-toolbar"><span id="selectionInfo">Ничего не выбрано</span><div><button class="secondary-button compact" id="mergeSelected" type="button" disabled>Объединить</button><button class="secondary-button compact" id="splitSelected" type="button" disabled>Разделить</button><button class="danger-button compact" id="removeSelected" type="button" disabled>Удалить</button><button class="secondary-button compact" id="restoreDetection" type="button" disabled>Сбросить правки</button></div></div><div class="glyph-grid" id="glyphGrid"><div class="results-empty">После анализа здесь появятся отдельные буквы.</div></div><div class="export-row"><p>Экспорт сохраняет рамки, порядок, подписи и параметры обработки. Фото в JSON не включается.</p><button class="secondary-button" id="exportManifest" type="button" disabled>Скачать разметку JSON</button></div></div>
     </section>
   </main>
-
+  <script type="module" src="template-app.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>
