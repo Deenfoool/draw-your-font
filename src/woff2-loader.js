@@ -1,37 +1,36 @@
-const MODULE_URLS = [
-  'https://cdn.jsdelivr.net/npm/fonteditor-core@2.6.3/+esm',
-  'https://esm.sh/fonteditor-core@2.6.3',
-];
-const WASM_URL = 'https://cdn.jsdelivr.net/npm/fonteditor-core@2.6.3/woff2/woff2.wasm';
+const LOCAL_MODULE_URL = './vendor/woff2-codec.mjs';
+const LOCAL_WASM_URL = './vendor/woff2.wasm';
 let modulePromise = null;
 let initPromise = null;
+let selectedSource = null;
 
 async function loadModule() {
   if (modulePromise) return modulePromise;
-  modulePromise = (async () => {
-    let lastError = null;
-    for (const url of MODULE_URLS) {
-      try {
-        const mod = await import(url);
-        if (typeof mod.createFont === 'function' && mod.woff2) return mod;
-      } catch (error) {
-        lastError = error;
-      }
-    }
-    throw new Error(`Не удалось загрузить браузерный кодек WOFF2${lastError ? `: ${lastError.message}` : ''}`);
-  })();
+  modulePromise = import(LOCAL_MODULE_URL)
+    .then((mod) => {
+      if (typeof mod.createFont !== 'function' || !mod.woff2) throw new Error('Локальный WOFF2-модуль имеет неверный формат.');
+      selectedSource = LOCAL_MODULE_URL;
+      return mod;
+    })
+    .catch((error) => {
+      modulePromise = null;
+      throw new Error(`Локальный WOFF2-кодек не найден: ${error.message}. Выполните npm run build:runtime.`);
+    });
   return modulePromise;
 }
 
 export async function initializeWoff2(onProgress) {
   if (initPromise) return initPromise;
   initPromise = (async () => {
-    onProgress?.('Загружаю WOFF2-кодек…');
+    onProgress?.('Инициализирую локальный WOFF2-кодек…');
     const mod = await loadModule();
-    if (!mod.woff2.isInited?.()) await mod.woff2.init(WASM_URL);
+    if (!mod.woff2.isInited?.()) await mod.woff2.init(LOCAL_WASM_URL);
     if (!mod.woff2.isInited?.()) throw new Error('WOFF2-кодек не инициализировался.');
     return mod;
-  })();
+  })().catch((error) => {
+    initPromise = null;
+    throw error;
+  });
   return initPromise;
 }
 
@@ -42,11 +41,15 @@ export async function encodeWoff2(ttfBytes, onProgress) {
   const font = mod.createFont(input, { type: 'ttf' });
   const output = font.write({ type: 'woff2' });
   const bytes = output instanceof Uint8Array ? output : new Uint8Array(output);
-  const signature = String.fromCharCode(...bytes.slice(0, 4));
-  if (signature !== 'wOF2') throw new Error('WOFF2-кодек вернул некорректный файл.');
+  if (String.fromCharCode(...bytes.slice(0, 4)) !== 'wOF2') throw new Error('WOFF2-кодек вернул некорректный файл.');
   return bytes;
 }
 
 export function getWoff2DependencyInfo() {
-  return { moduleUrls: [...MODULE_URLS], wasmUrl: WASM_URL };
+  return {
+    localModuleUrl: LOCAL_MODULE_URL,
+    localWasmUrl: LOCAL_WASM_URL,
+    selectedSource,
+    runtimeAutonomous: selectedSource === LOCAL_MODULE_URL,
+  };
 }
