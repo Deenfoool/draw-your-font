@@ -23,6 +23,30 @@ function partNumber(name) {
   return match ? Number(match[1]) : null;
 }
 
+function validatePartSequence(partsDirectory, parts) {
+  if (!parts.length) throw new Error(`No source parts found in ${partsDirectory}`);
+
+  const numbers = parts.map((part) => part.number);
+  const unique = new Set(numbers);
+  if (unique.size !== numbers.length) {
+    throw new Error(`Duplicate source part number in ${partsDirectory}: ${numbers.join(', ')}`);
+  }
+
+  const startNumber = numbers[0];
+  if (startNumber !== 0 && startNumber !== 1) {
+    throw new Error(`Unsupported source part numbering in ${partsDirectory}: expected first part 0 or 1, got ${startNumber}`);
+  }
+
+  for (let index = 0; index < numbers.length; index += 1) {
+    const expected = startNumber + index;
+    if (numbers[index] !== expected) {
+      throw new Error(`Missing or unordered source part in ${partsDirectory}: expected ${expected}, got ${numbers[index]}`);
+    }
+  }
+
+  return { startNumber, numbers };
+}
+
 for (const [partsDirectory, outputPath] of targets) {
   const directory = resolve(root, partsDirectory);
   const parts = (await readdir(directory))
@@ -30,14 +54,7 @@ for (const [partsDirectory, outputPath] of targets) {
     .filter((part) => Number.isInteger(part.number))
     .sort((left, right) => left.number - right.number || left.name.localeCompare(right.name));
 
-  if (!parts.length) throw new Error(`No source parts found in ${partsDirectory}`);
-  const numbers = parts.map((part) => part.number);
-  const unique = new Set(numbers);
-  if (unique.size !== numbers.length) throw new Error(`Duplicate source part number in ${partsDirectory}: ${numbers.join(', ')}`);
-  for (let index = 0; index < numbers.length; index += 1) {
-    if (numbers[index] !== index + 1) throw new Error(`Missing or unordered source part in ${partsDirectory}: expected ${index + 1}, got ${numbers[index]}`);
-  }
-
+  const { startNumber } = validatePartSequence(partsDirectory, parts);
   const chunks = await Promise.all(parts.map(({ name }) => readFile(resolve(directory, name), 'utf8')));
   const encoded = chunks.join('').replace(/\s+/g, '');
   if (!encoded || encoded.length % 4 === 1 || /[^A-Za-z0-9+/=]/.test(encoded)) {
@@ -64,7 +81,7 @@ if (!document.querySelector('link[data-dyfr-cursive]')) {
 `, 'utf8')]);
   }
   await writeFile(resolve(root, outputPath), source);
-  console.log(`Assembled ${outputPath} (${source.length} bytes, ${parts.length} verified parts).`);
+  console.log(`Assembled ${outputPath} (${source.length} bytes, ${parts.length} verified parts, numbering starts at ${startNumber}).`);
 }
 
 for (const relativePath of directSources) {
