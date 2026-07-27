@@ -16,8 +16,7 @@ BUILDER = (ROOT / 'src' / 'font-builder.js').read_text(encoding='utf-8')
 APP = (ROOT / 'font-app.js').read_text(encoding='utf-8')
 PORT = 9777
 BROWSER = shutil.which('chromium') or shutil.which('google-chrome') or shutil.which('google-chrome-stable')
-if not BROWSER:
-    raise RuntimeError('Chromium/Chrome not found')
+if not BROWSER: raise RuntimeError('Chromium/Chrome not found')
 
 
 def strip_exports(source):
@@ -80,13 +79,11 @@ with tempfile.TemporaryDirectory(prefix='dyf-font-ui-') as temp:
             html = INDEX
             html = re.sub(r'<link rel="stylesheet" href="(?:style|template|font)\.css">', '', html)
             html = html.replace('</head>', f'<style>:root{{--border:#334155;--muted:#64748b;--text:#111827;--cyan:#0284c7;--accent:#16a34a;--accent-strong:#16a34a;--warning:#d97706;--danger:#dc2626}}body{{font-family:Arial}}{FONT_CSS}</style></head>')
-            html = re.sub(r'<script type="module" src="(?:template-app|app|font-app)\.js"></script>', '', html)
+            html = re.sub(r'<script type="module"[^>]*></script>', '', html)
             set_document(ws, 10, html)
             source = strip_exports(BUILDER)
-            source += '''
-async function encodeWoff2(ttfBytes, onProgress) { onProgress?.('Сжимаю WOFF2…'); const out = new Uint8Array(Math.max(64, Math.floor(ttfBytes.length * 0.55))); out.set([119,79,70,50]); return out; }
-function getWoff2DependencyInfo(){ return { wasmUrl: 'https://cdn.jsdelivr.net/mock.wasm' }; }
-'''
+            source += '''\nasync function encodeWoff2(ttfBytes, onProgress) { onProgress?.('Сжимаю WOFF2…'); const out = new Uint8Array(Math.max(64, Math.floor(ttfBytes.length * 0.55))); out.set([119,79,70,50]); return out; }
+function getWoff2DependencyInfo(){ return { localModuleUrl: './vendor/woff2-codec.mjs' }; }\n'''
             source += strip_imports(APP)
             bootstrap = r'''
 const width = 140, height = 90;
