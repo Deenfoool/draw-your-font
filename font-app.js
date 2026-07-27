@@ -56,8 +56,57 @@ function safeBaseName(value) {
     .slice(0, 60) || 'my-handwriting';
 }
 
+function getSourceFromGlyphCards() {
+  const cards = [...document.querySelectorAll('#glyphGrid .glyph-card')];
+  if (!cards.length) return null;
+  const tile = 128;
+  const columns = Math.min(10, cards.length);
+  const rows = Math.ceil(cards.length / columns);
+  const width = columns * tile;
+  const height = rows * tile;
+  const mask = new Uint8Array(width * height);
+  const glyphs = [];
+  const labels = [];
+  cards.forEach((card, index) => {
+    const canvas = card.querySelector('canvas');
+    const input = card.querySelector('.glyph-label');
+    if (!canvas) return;
+    const column = index % columns;
+    const row = Math.floor(index / columns);
+    const offsetX = column * tile;
+    const offsetY = row * tile;
+    const image = canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, canvas.width, canvas.height);
+    let x0 = tile;
+    let y0 = tile;
+    let x1 = -1;
+    let y1 = -1;
+    for (let y = 0; y < tile; y += 1) {
+      for (let x = 0; x < tile; x += 1) {
+        const sx = Math.floor(x * canvas.width / tile);
+        const sy = Math.floor(y * canvas.height / tile);
+        const p = (sy * canvas.width + sx) * 4;
+        const dark = (image.data[p] + image.data[p + 1] + image.data[p + 2]) / 3 < 160 && image.data[p + 3] > 30;
+        if (!dark) continue;
+        mask[(offsetY + y) * width + offsetX + x] = 1;
+        x0 = Math.min(x0, x);
+        y0 = Math.min(y0, y);
+        x1 = Math.max(x1, x);
+        y1 = Math.max(y1, y);
+      }
+    }
+    glyphs.push({
+      x0: offsetX + (x1 >= 0 ? x0 : 0),
+      y0: offsetY + (y1 >= 0 ? y0 : 0),
+      x1: offsetX + (x1 >= 0 ? x1 : tile - 1),
+      y1: offsetY + (y1 >= 0 ? y1 : tile - 1),
+    });
+    labels.push(input?.value || '');
+  });
+  return { width, height, mask, glyphs, labels, fileName: 'glyph-previews' };
+}
+
 function getSource() {
-  return window.__drawYourFontSegmentation?.getFontSource?.() || null;
+  return window.__drawYourFontSegmentation?.getFontSource?.() || getSourceFromGlyphCards();
 }
 
 function sourceSummary() {
