@@ -84,6 +84,23 @@ function recoveryRenderReport(summary, failures) {
   report.textContent = parts.join(' ');
 }
 
+async function recoverySendToManualMode(decoded, file) {
+  const manualInput = recoveryById('fileInput');
+  const manualMode = recoveryById('manualMode');
+  if (!manualInput || !manualMode) throw new Error('Ручной режим недоступен на этой странице.');
+  const pngBlob = await new Promise((resolve, reject) => decoded.canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Не удалось преобразовать фотографию в PNG.')), 'image/png'));
+  const safeName = String(file.name || 'handwriting').replace(/\.[^.]+$/, '') || 'handwriting';
+  const pngFile = new File([pngBlob], `${safeName}.png`, { type: 'image/png', lastModified: file.lastModified || Date.now() });
+  if (typeof DataTransfer !== 'function') throw new Error('Браузер не поддерживает передачу файла в ручной режим.');
+  const transfer = new DataTransfer();
+  transfer.items.add(pngFile);
+  manualInput.files = transfer.files;
+  manualMode.open = true;
+  manualInput.dispatchEvent(new Event('change', { bubbles: true }));
+  manualMode.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  recoverySetStatus(`«${file.name}» передан в ручной режим как PNG.`, 'ok');
+}
+
 function recoveryManualCornerDialog(decoded, file, activePlan) {
   return new Promise((resolve, reject) => {
     const host = recoveryById('scanPages');
@@ -95,7 +112,6 @@ function recoveryManualCornerDialog(decoded, file, activePlan) {
     title.textContent = `Укажите четыре угла листа: ${file.name}`;
     const help = document.createElement('p');
     help.textContent = 'Перетащите точки на внешние углы бумаги. Программа сама попробует все четыре поворота. Если машинный код размыт, выберите номер страницы и поворот вручную.';
-
     const display = recoveryGrayToCanvas(decoded.gray, decoded.width, decoded.height, 900);
     display.className = 'manual-corner-canvas';
     const context = display.getContext('2d');
@@ -114,7 +130,6 @@ function recoveryManualCornerDialog(decoded, file, activePlan) {
       { x: marginX, y: display.height - marginY, label: '4' },
     ];
     let dragging = -1;
-
     function draw() {
       context.clearRect(0, 0, display.width, display.height);
       context.drawImage(base, 0, 0);
@@ -140,7 +155,6 @@ function recoveryManualCornerDialog(decoded, file, activePlan) {
         context.fillText(point.label, point.x, point.y);
       }
     }
-
     function pointerPosition(event) {
       const rect = display.getBoundingClientRect();
       return { x: (event.clientX - rect.left) * display.width / rect.width, y: (event.clientY - rect.top) * display.height / rect.height };
@@ -162,7 +176,6 @@ function recoveryManualCornerDialog(decoded, file, activePlan) {
     });
     display.addEventListener('pointerup', () => { dragging = -1; });
     display.addEventListener('pointercancel', () => { dragging = -1; });
-
     const controls = document.createElement('div');
     controls.className = 'manual-corner-controls';
     const pageLabel = document.createElement('label');
@@ -185,12 +198,15 @@ function recoveryManualCornerDialog(decoded, file, activePlan) {
     apply.className = 'primary-button';
     apply.type = 'button';
     apply.textContent = 'Применить углы';
+    const manual = document.createElement('button');
+    manual.className = 'secondary-button';
+    manual.type = 'button';
+    manual.textContent = 'Это обычное фото — открыть ручной режим';
     const cancel = document.createElement('button');
     cancel.className = 'secondary-button';
     cancel.type = 'button';
     cancel.textContent = 'Пропустить файл';
-    controls.append(pageLabel, rotationLabel, apply, cancel);
-
+    controls.append(pageLabel, rotationLabel, apply, manual, cancel);
     apply.addEventListener('click', () => {
       try {
         const corners = points.map((point) => ({ x: point.x * scaleX, y: point.y * scaleY }));
@@ -201,6 +217,15 @@ function recoveryManualCornerDialog(decoded, file, activePlan) {
           rotation: rotationSelect.value === 'auto' ? 'auto' : Number(rotationSelect.value),
           outputWidth: 1260,
         }));
+      } catch (error) {
+        help.textContent = error.message;
+        help.dataset.mode = 'error';
+      }
+    });
+    manual.addEventListener('click', async () => {
+      try {
+        await recoverySendToManualMode(decoded, file);
+        resolve({ manualTransfer: true });
       } catch (error) {
         help.textContent = error.message;
         help.dataset.mode = 'error';
@@ -226,7 +251,7 @@ async function processScanFilesRobust() {
   if (progress) { progress.hidden = false; progress.max = files.length; progress.value = 0; }
   const results = [];
   const failures = [];
-
+  let manualTransfers = 0;
   for (let index = 0; index < files.length; index += 1) {
     const file = files[index];
     recoverySetStatus(`Открываю ${index + 1}/${files.length}: ${file.name}…`, 'busy');
@@ -239,6 +264,11 @@ async function processScanFilesRobust() {
       } catch (automaticError) {
         recoverySetStatus(`Метки на «${file.name}» не распознаны. Укажите углы листа вручную.`, 'busy');
         result = await recoveryManualCornerDialog(decoded, file, activePlan);
+        if (result?.manualTransfer) {
+          manualTransfers += 1;
+          if (progress) progress.value = index + 1;
+          continue;
+        }
         result.recovery = { ...(result.recovery || {}), automaticError: automaticError.message };
       }
       result.fileName = file.name;
@@ -250,16 +280,19 @@ async function processScanFilesRobust() {
     }
     if (progress) progress.value = index + 1;
   }
-
   recoveryState.scans = results;
   recoveryState.failures = failures;
   if (!results.length) {
+    if (manualTransfers) {
+      recoverySetStatus(`${manualTransfers} файл(а) передано в ручной режим. Нажмите «Найти буквы».`, 'ok');
+      if (progress) progress.hidden = true;
+      return null;
+    }
     recoveryRenderResults([], failures);
     recoverySetStatus('Ни одна фотография не обработана. Проверьте сообщения ниже.', 'error');
     if (progress) progress.hidden = true;
     return null;
   }
-
   const plan = results[0].plan || activePlan;
   const summary = summarizeScannedPages(results, plan);
   const project = projectFromScannedSummary(summary, {
@@ -271,7 +304,7 @@ async function processScanFilesRobust() {
   api.importProject(serializeProject(project));
   recoveryRenderResults(results, failures);
   recoveryRenderReport(summary, failures);
-  recoverySetStatus(`Готово: ${results.length} страниц, ${project.glyphs.length} символов.${failures.length ? ` Ошибок файлов: ${failures.length}.` : ''}`, failures.length ? 'busy' : 'ok');
+  recoverySetStatus(`Готово: ${results.length} страниц, ${project.glyphs.length} символов.${manualTransfers ? ` В ручной режим передано: ${manualTransfers}.` : ''}${failures.length ? ` Ошибок файлов: ${failures.length}.` : ''}`, failures.length ? 'busy' : 'ok');
   if (progress) progress.hidden = true;
   window.dispatchEvent(new CustomEvent('drawyourfont:project-updated', { detail: { glyphCount: project.glyphs.length, recovery: true } }));
   return project;
