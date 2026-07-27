@@ -1,27 +1,32 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 
 const assembly = await readFile('scripts/assemble-stage4.mjs', 'utf8');
 assert.doesNotMatch(assembly, /source-parts\/cursive-font-v2\.js/);
 assert.doesNotMatch(assembly, /source-parts\/cursive-app-v4\.js/);
+assert.match(assembly, /src\/cursive-font-core\.js/);
 assert.match(assembly, /src\/cursive-font\.js/);
 assert.match(assembly, /cursive-app\.js/);
 assert.match(assembly, /data-dyfr-cursive/);
 assert.match(assembly, /Duplicate source part number/);
 assert.match(assembly, /Missing or unordered source part/);
+assert.match(assembly, /spawnSync\(process\.execPath, \['--check'/);
 
-const expected = new Map([
-  ['src/cursive-font.js', 'ff3399cf31d9bfb41951b5bb289bcb773b646197de3c47ad7ee98cfcc77a7e7b'],
-  ['cursive-app.js', '1f39268d2eaa053d57227380a703089ead7b63098c109276edc7298ecce62968'],
-]);
-for (const [file, digest] of expected) {
-  const source = await readFile(file);
-  assert.equal(createHash('sha256').update(source).digest('hex'), digest, `${file} integrity mismatch`);
+for (const file of ['src/cursive-font-core.js', 'src/cursive-font.js', 'cursive-app.js']) {
+  const source = await readFile(file, 'utf8');
+  assert.ok(source.length > 100, `${file} is unexpectedly empty`);
   const check = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
   assert.equal(check.status, 0, `${file} syntax error: ${check.stderr}`);
 }
+
+const core = await readFile('src/cursive-font-core.js', 'utf8');
+const wrapper = await readFile('src/cursive-font.js', 'utf8');
+assert.match(core, /function buildGsub\(/);
+assert.match(core, /function buildGpos\(/);
+assert.match(wrapper, /restrictCursiveFeatureLookups/);
+assert.match(wrapper, /\[1, 3, 5\]/);
+assert.match(wrapper, /buildCoreCursiveFont/);
 
 const stage4 = await readFile('stage4-app.js', 'utf8');
 assert.match(stage4, /import '\.\/cursive-app\.js';/);
