@@ -129,6 +129,9 @@ async function generateTemplateFile(options = {}) {
       anchor.download = safeFileName(state.plan.title);
       anchor.click();
       setTimeout(() => URL.revokeObjectURL(url), 0);
+      window.dispatchEvent(new CustomEvent('drawyourfont:template-downloaded', {
+        detail: { pageCount: pages, size: bytes.length, title: state.plan.title },
+      }));
     }
 
     setStatus(`PDF проверен: ${pages} стр., ${(bytes.length / 1024).toFixed(0)} КБ.`, 'ok');

@@ -17,6 +17,8 @@ const directSources = [
   'src/cursive-font-v3.js',
   'src/cursive-font.js',
   'cursive-app.js',
+  'cursive-ui-polish.js',
+  'ui-flow.js',
 ];
 
 function partNumber(name) {
@@ -72,6 +74,8 @@ for (const [partsDirectory, outputPath] of targets) {
     source = Buffer.concat([source, Buffer.from(`
 import './stage4-recovery-app.js';
 import './cursive-app.js';
+import './cursive-ui-polish.js';
+import './ui-flow.js';
 if (!document.querySelector('link[data-dyfr-cursive]')) {
   const link = document.createElement('link');
   link.rel = 'stylesheet';
