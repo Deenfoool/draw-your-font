@@ -17,4 +17,6 @@ await build({
   legalComments: 'eof',
 });
 await copyFile(resolve(root, 'node_modules/fonteditor-core/woff2/woff2.wasm'), resolve(root, 'vendor/woff2.wasm'));
-console.log('Local WOFF2 runtime prepared.');
+await copyFile(resolve(root, 'node_modules/heic-to/dist/csp/heic-to.js'), resolve(root, 'vendor/heic-codec.mjs'));
+await copyFile(resolve(root, 'node_modules/heic-to/LICENSE'), resolve(root, 'vendor/heic-to-LICENSE.txt'));
+console.log('Local WOFF2 and HEIC runtimes prepared.');
