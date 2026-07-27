@@ -9,6 +9,7 @@ import {
 } from '../src/template.js';
 import { buildJpegPdf, countPdfPages, validatePdfStructure } from '../src/pdf.js';
 
+// 1. Russian charsets include Ё/ё exactly once and have unique symbols.
 {
   const upper = getTemplateCharset('ru-upper');
   const lower = getTemplateCharset('ru-lower');
@@ -19,10 +20,12 @@ import { buildJpegPdf, countPdfPages, validatePdfStructure } from '../src/pdf.js
   assert.ok(TEMPLATE_CHARSETS['ru-extended'].length > TEMPLATE_CHARSETS['ru-full'].length);
 }
 
+// 2. Custom charset is NFC-normalized, whitespace-free and de-duplicated.
 {
   assert.deepEqual(normalizeCustomCharset(' АА Е\u0308Ё\nБ '), ['А', 'Ё', 'Б']);
 }
 
+// 3. Balanced layout keeps every character once, in order, inside A4 and fits full RU in 2 pages.
 {
   const chars = getTemplateCharset('ru-full');
   const plan = planTemplatePages(chars, { layoutId: 'balanced', charsetId: 'ru-full', title: 'Тестовый шрифт' });
@@ -37,6 +40,7 @@ import { buildJpegPdf, countPdfPages, validatePdfStructure } from '../src/pdf.js
   }
 }
 
+// 4. Large layout has 35 cells per page and correct page numbering.
 {
   const chars = getTemplateCharset('ru-letters');
   const plan = planTemplatePages(chars, { layoutId: 'large', charsetId: 'ru-letters' });
@@ -45,11 +49,14 @@ import { buildJpegPdf, countPdfPages, validatePdfStructure } from '../src/pdf.js
   assert.deepEqual(plan.pages.map((page) => [page.pageNumber, page.pageCount]), [[1, 2], [2, 2]]);
 }
 
+// 5. Empty custom set is rejected.
 {
   assert.throws(() => planTemplatePages([], {}), /пуст/i);
 }
 
+// 6. Binary PDF builder produces a valid multi-page xref structure.
 {
+  // Minimal fake JPEG bytes are sufficient for structural testing; browser test uses real JPEG pages.
   const fakeJpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
   const pdf = buildJpegPdf([
     { width: 10, height: 10, bytes: fakeJpeg },
