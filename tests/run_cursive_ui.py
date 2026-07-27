@@ -81,22 +81,29 @@ with tempfile.TemporaryDirectory(prefix='dyfr-cursive-ui-') as temp:
                 }
               };
               await waitFor(() => window.__drawYourFontProject && window.__drawYourFontCursive && document.querySelector('#cursiveBuilder'));
+              const descenders = new Set(['д','р','у','ф','щ','ц']);
               const makeGlyph = (char, seed = 0) => {
-                const width = 54, height = 72, mask = new Uint8Array(width * height);
+                const width = 54, height = 78, mask = new Uint8Array(width * height);
                 const put = (x,y,r=2) => { for(let yy=y-r;yy<=y+r;yy++)for(let xx=x-r;xx<=x+r;xx++)if(xx>=0&&yy>=0&&xx<width&&yy<height&&(xx-x)**2+(yy-y)**2<=r*r+.5)mask[yy*width+xx]=1; };
                 const line = (x0,y0,x1,y1,r=2) => { const steps=Math.ceil(Math.hypot(x1-x0,y1-y0)*2); for(let i=0;i<=steps;i++){const t=i/steps;put(Math.round(x0+(x1-x0)*t),Math.round(y0+(y1-y0)*t),r);} };
-                line(11+seed,55,17+seed,26);line(17+seed,26,27+seed,48);line(27+seed,48,39+seed,25);line(39+seed,25,44+seed,55);line(12+seed,54,44+seed,54);
+                line(11+seed,57,17+seed,26);line(17+seed,26,27+seed,48);line(27+seed,48,39+seed,25);line(39+seed,25,44+seed,57);line(12+seed,56,44+seed,56);
+                if(descenders.has(char)){line(24+seed,55,24+seed,73,2);line(24+seed,73,31+seed,69,2);}
                 const bytes=[];let value=mask[0]?1:0,run=0;for(let i=0;i<mask.length;i++){const bit=mask[i]?1:0;if(bit===value&&run<65535)run++;else{bytes.push(value,run>>8,run&255);value=bit;run=1;}}bytes.push(value,run>>8,run&255);let binary='';for(const byte of bytes)binary+=String.fromCharCode(byte);
-                return {id:`g-${char}`,char,width,height,mask:btoa(binary),guides:{capY:8,xHeightY:25,baselineY:57,descenderY:67},metrics:{leftSideBearing:42,rightSideBearing:42,scale:1,offsetX:0,offsetY:0,advanceWidth:null},quality:{inkCount:mask.reduce((a,b)=>a+b,0),areaRatio:.1,bbox:{x0:8,y0:20,x1:47,y1:58,width:40,height:39},warnings:[]},source:{type:'test'}};
+                return {id:`g-${char}`,char,width,height,mask:btoa(binary),guides:{capY:8,xHeightY:25,baselineY:59,descenderY:73},metrics:{leftSideBearing:42,rightSideBearing:42,scale:1,offsetX:0,offsetY:0,advanceWidth:null},quality:{inkCount:mask.reduce((a,b)=>a+b,0),areaRatio:.1,bbox:{x0:8,y0:20,x1:47,y1:74,width:40,height:55},warnings:[]},source:{type:'test'}};
               };
               const now=new Date().toISOString();
-              const project={format:'draw-your-font-project',version:4,id:'cursive-browser-test',title:'Cursive Browser Test',createdAt:now,updatedAt:now,glyphs:[makeGlyph('м'),makeGlyph('а',1),makeGlyph('т',-1),makeGlyph('А')],kerning:{'А|А':-40},font:{familyName:'Cursive Browser Test',styleName:'Regular',unitsPerEm:1000,ascent:800,descent:-200,lineGap:120},template:null,sourceFiles:[]};
+              const chars=['м','а','т','д','р','у','ф','щ','ц','о','ж','ь','А'];
+              const project={format:'draw-your-font-project',version:4,id:'cursive-browser-test',title:'Cursive Browser Test',createdAt:now,updatedAt:now,glyphs:chars.map((char,index)=>makeGlyph(char,(index%3)-1)),kerning:{'А|А':-40},font:{familyName:'Cursive Browser Test',styleName:'Regular',unitsPerEm:1000,ascent:800,descent:-200,lineGap:120},template:null,sourceFiles:[]};
               window.__drawYourFontProject.importProject(JSON.stringify(project));
-              await waitFor(() => document.querySelector('#cursiveCharacter')?.options.length >= 3);
+              await waitFor(() => document.querySelector('#cursiveCharacter')?.options.length >= 12);
               const enabled=document.querySelector('#cursiveEnabled');if(!enabled.checked) enabled.click();
-              document.querySelector('#cursivePreviewText').value='мама';document.querySelector('#cursivePreviewText').dispatchEvent(new Event('input',{bubbles:true}));
-              const simulated=window.__drawYourFontCursive.simulate('мама').map(item=>item.form);
-              if(JSON.stringify(simulated)!==JSON.stringify(['init','medi','medi','fina'])) throw new Error(`Bad simulation ${simulated}`);
+              document.querySelector('#cursiveDescenderPreset').click();
+              document.querySelector('#cursiveCharacter').value='р';document.querySelector('#cursiveCharacter').dispatchEvent(new Event('change',{bubbles:true}));
+              if(!document.querySelector('#cursiveHasDescender').checked) throw new Error('р is not marked as descender');
+              document.querySelector('#cursiveDescenderScale').value='140';document.querySelector('#cursiveDescenderScale').dispatchEvent(new Event('input',{bubbles:true}));
+              document.querySelector('#cursivePreviewText').value='дрожь';document.querySelector('#cursivePreviewText').dispatchEvent(new Event('input',{bubbles:true}));
+              const simulated=window.__drawYourFontCursive.simulate('дрожь').map(item=>item.form);
+              if(JSON.stringify(simulated)!==JSON.stringify(['init','medi','medi','medi','fina'])) throw new Error(`Bad simulation ${simulated}`);
               document.querySelector('#fontBuild').click();
               await waitFor(() => ['ok','error'].includes(document.querySelector('#fontStatus').dataset.mode), 120000);
               const status=document.querySelector('#fontStatus');
@@ -104,12 +111,15 @@ with tempfile.TemporaryDirectory(prefix='dyfr-cursive-ui-') as temp:
               const state=window.__drawYourFontCursive.getState();
               if(!state.outputs?.ttf || !state.outputs?.woff2) throw new Error('Connected outputs missing');
               if(!state.outputs.built.tables.includes('GSUB') || !state.outputs.built.tables.includes('GPOS')) throw new Error('GSUB or GPOS missing');
+              const rVertical=state.outputs.built.layout.vertical['р'];
+              if(!rVertical?.hasDescender || rVertical.yMin>=-80) throw new Error(`Bad р descender ${JSON.stringify(rVertical)}`);
+              if(state.outputs.built.layout.metrics.descent>=-200) throw new Error(`Font descent did not expand ${JSON.stringify(state.outputs.built.layout.metrics)}`);
               const signature=String.fromCharCode(...state.outputs.ttf.slice(0,4));
               const woff2=String.fromCharCode(...state.outputs.woff2.slice(0,4));
               const preview=document.querySelector('#fontPreview');
-              return {forms:simulated,ttf:state.outputs.ttf.length,woff2:state.outputs.woff2.length,signature,woff2Signature:woff2,featureSettings:preview.style.fontFeatureSettings,canvasCount:document.querySelectorAll('#cursiveForms canvas').length,status:status.textContent,tables:state.outputs.built.tables};
+              return {forms:simulated,ttf:state.outputs.ttf.length,woff2:state.outputs.woff2.length,signature,woff2Signature:woff2,featureSettings:preview.style.fontFeatureSettings,canvasCount:document.querySelectorAll('#cursiveForms canvas').length,status:status.textContent,tables:state.outputs.built.tables,vertical:rVertical,metrics:state.outputs.built.layout.metrics,controls:{baseline:!!document.querySelector('#cursiveBaseline'),descender:!!document.querySelector('#cursiveDescenderScale'),preset:!!document.querySelector('#cursiveDescenderPreset')}};
             })()''')
-            if result['forms'] != ['init', 'medi', 'medi', 'fina']:
+            if result['forms'] != ['init', 'medi', 'medi', 'medi', 'fina']:
                 raise RuntimeError(f'Wrong forms: {result}')
             if result['signature'] != '\x00\x01\x00\x00' or result['woff2Signature'] != 'wOF2':
                 raise RuntimeError(f'Wrong font signatures: {result}')
@@ -117,6 +127,8 @@ with tempfile.TemporaryDirectory(prefix='dyfr-cursive-ui-') as temp:
                 raise RuntimeError(f'Cursive UI incomplete: {result}')
             if 'GSUB' not in result['tables'] or 'GPOS' not in result['tables']:
                 raise RuntimeError(f'OpenType tables missing: {result}')
+            if not all(result['controls'].values()) or result['vertical']['yMin'] >= -80 or result['metrics']['descent'] >= -200:
+                raise RuntimeError(f'Descender UI/metrics incomplete: {result}')
             print(json.dumps(result, ensure_ascii=False, indent=2))
         finally:
             ws.close()

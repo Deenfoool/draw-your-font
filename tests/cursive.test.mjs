@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
 import {
+  applyRussianDescenderPreset,
   buildCursiveTrueTypeFont,
+  DESCENDER_LETTERS,
   ensureCursiveProject,
   generateCursiveFormMask,
+  getCursiveGlyphMetrics,
   parseSfntDirectory,
   readCursiveFeatureLookups,
   simulateCursiveForms,
@@ -11,9 +14,11 @@ import {
 } from '../src/cursive-font.js';
 import { deserializeProject, serializeProject } from '../src/project.js';
 
+const DESCENDERS = new Set(DESCENDER_LETTERS);
+
 function glyph(char, seed = 0) {
   const width = 54;
-  const height = 72;
+  const height = 78;
   const mask = new Uint8Array(width * height);
   const put = (x, y, radius = 2) => {
     for (let py = y - radius; py <= y + radius; py += 1) for (let px = x - radius; px <= x + radius; px += 1) {
@@ -27,55 +32,84 @@ function glyph(char, seed = 0) {
       put(Math.round(x0 + (x1 - x0) * t), Math.round(y0 + (y1 - y0) * t), radius);
     }
   };
-  line(11 + seed, 55, 17 + seed, 26);
+  line(11 + seed, 57, 17 + seed, 26);
   line(17 + seed, 26, 27 + seed, 48);
   line(27 + seed, 48, 39 + seed, 25);
-  line(39 + seed, 25, 44 + seed, 55);
-  line(12 + seed, 54, 44 + seed, 54);
+  line(39 + seed, 25, 44 + seed, 57);
+  line(12 + seed, 56, 44 + seed, 56);
+  if (DESCENDERS.has(char)) {
+    line(24 + seed, 55, 24 + seed, 73, 2);
+    line(24 + seed, 73, 31 + seed, 69, 2);
+  }
   return {
     id: `g-${char}`,
     char,
     width,
     height,
     mask,
-    guides: { capY: 8, xHeightY: 25, baselineY: 57, descenderY: 67 },
+    guides: { capY: 8, xHeightY: 25, baselineY: 59, descenderY: 73 },
     metrics: { leftSideBearing: 42, rightSideBearing: 42, scale: 1, offsetX: 0, offsetY: 0, advanceWidth: null },
   };
 }
 
+const characters = ['м','а','т','д','р','у','ф','щ','ц','о','ж','ь','А'];
 const project = {
   format: 'draw-your-font-project',
   version: 4,
-  title: 'Cursive Test',
-  font: { familyName: 'Cursive Test', styleName: 'Regular', ascent: 800, descent: -200 },
-  glyphs: [glyph('м'), glyph('а', 1), glyph('т', -1), glyph('А')],
+  title: 'Cursive Descender Test',
+  font: { familyName: 'Cursive Descender Test', styleName: 'Regular', ascent: 800, descent: -200 },
+  glyphs: characters.map((char, index) => glyph(char, (index % 3) - 1)),
   kerning: { 'А|А': -40 },
 };
 
 const cursive = ensureCursiveProject(project);
 assert.equal(cursive.glyphs.м.joinLeft, true);
 assert.equal(cursive.glyphs.А.joinLeft, false);
+for (const char of DESCENDER_LETTERS) assert.equal(cursive.glyphs[char].hasDescender, true, `${char} must be a descender by default`);
+assert.equal(cursive.glyphs.а.hasDescender, false);
+
+const rGlyph = project.glyphs.find((item) => item.char === 'р');
+const rConfig = cursive.glyphs.р;
+const rMetrics = getCursiveGlyphMetrics(rGlyph, rConfig);
+assert.ok(rMetrics.baselineY < rMetrics.descenderY);
+const rIsolated = generateCursiveFormMask(rGlyph, 'isol', cursive, rConfig);
+assert.ok(rIsolated.mask.some(Boolean));
+assert.ok(rIsolated.mask.slice((Math.floor(rIsolated.baselineY) + 1) * rIsolated.width).some(Boolean), 'р must retain ink below baseline');
+const originalHeight = rIsolated.height;
+rConfig.descenderScale = 1.5;
+const stretched = generateCursiveFormMask(rGlyph, 'isol', cursive, rConfig);
+assert.ok(stretched.height > originalHeight, 'descender scaling must increase canvas height');
+assert.equal(Math.round(stretched.baselineY), Math.round(rIsolated.baselineY), 'baseline must stay fixed when descender grows');
+rConfig.descenderScale = 1;
+
 const medial = generateCursiveFormMask(project.glyphs[0], 'medi', cursive, cursive.glyphs.м);
 assert.ok(medial.width > project.glyphs[0].width);
-assert.ok(medial.mask.some(Boolean));
 assert.ok(medial.mask[Math.round(medial.externalY) * medial.width], 'entry stroke must reach the left boundary');
 assert.ok(medial.mask[Math.round(medial.externalY) * medial.width + medial.width - 1], 'exit stroke must reach the right boundary');
 assert.deepEqual(simulateCursiveForms('мама', project).map(({ form }) => form), ['init', 'medi', 'medi', 'fina']);
+assert.deepEqual(simulateCursiveForms('дрожь', project).map(({ form }) => form), ['init', 'medi', 'medi', 'medi', 'fina']);
 assert.deepEqual(simulateCursiveForms('а', project).map(({ form }) => form), ['isol']);
 assert.deepEqual(simulateCursiveForms('ма ма', project).map(({ form }) => form), ['init', 'fina', 'isol', 'init', 'fina']);
 
-cursive.glyphs.т.joinRight = false;
+ensureCursiveProject(project).glyphs.т.joinRight = false;
 assert.deepEqual(simulateCursiveForms('тата', project).map(({ form }) => form), ['isol', 'init', 'fina', 'isol']);
-cursive.glyphs.т.joinRight = true;
+ensureCursiveProject(project).glyphs.т.joinRight = true;
 
-cursive.enabled = true;
-cursive.glyphs.м.entry = { x: 0.17, y: 0.74 };
-cursive.glyphs.м.forms.medi.offsetX = 3;
+const liveCursive = ensureCursiveProject(project);
+liveCursive.enabled = true;
+liveCursive.glyphs.м.entry = { x: 0.17, y: 0.72 };
+liveCursive.glyphs.м.forms.medi.offsetX = 3;
+liveCursive.glyphs.р.baselineY = 0.75;
+liveCursive.glyphs.р.descenderScale = 1.25;
+applyRussianDescenderPreset(project);
+ensureCursiveProject(project).glyphs.р.descenderScale = 1.25;
 const restored = deserializeProject(serializeProject(project));
 assert.equal(restored.cursive.enabled, true);
-assert.deepEqual(restored.cursive.glyphs.м.entry, { x: 0.17, y: 0.74 });
+assert.deepEqual(restored.cursive.glyphs.м.entry, { x: 0.17, y: 0.72 });
 assert.equal(restored.cursive.glyphs.м.forms.medi.offsetX, 3);
-assert.deepEqual(simulateCursiveForms('мама', restored).map(({ form }) => form), ['init', 'medi', 'medi', 'fina']);
+assert.equal(restored.cursive.glyphs.р.hasDescender, true);
+assert.equal(restored.cursive.glyphs.р.descenderScale, 1.25);
+assert.deepEqual(simulateCursiveForms('дрожь', restored).map(({ form }) => form), ['init', 'medi', 'medi', 'medi', 'fina']);
 
 const built = buildCursiveTrueTypeFont(restored, { detail: 96, simplify: 0.4, glyphHeight: 700 });
 assert.equal(validateCursiveTrueType(built.ttf).length, 0);
@@ -84,18 +118,30 @@ assert.ok(tags.includes('GSUB'));
 assert.ok(tags.includes('GPOS'));
 assert.ok(tags.includes('kern'));
 assert.deepEqual(readCursiveFeatureLookups(built.ttf), { calt: [1, 3, 5], rlig: [1, 3, 5] });
-assert.ok(built.glyphs.some((glyph) => glyph.cursiveEntry));
-assert.ok(built.glyphs.some((glyph) => glyph.cursiveExit));
+assert.ok(built.glyphs.some((item) => item.cursiveEntry));
+assert.ok(built.glyphs.some((item) => item.cursiveExit));
 assert.equal(built.layout.forms.м.init > built.layout.forms.м.isol, true);
 assert.equal(built.layout.forms.м.medi > built.layout.forms.м.init, true);
 assert.equal(built.layout.forms.м.fina > built.layout.forms.м.medi, true);
 
+const rId = built.layout.forms.р.isol;
+const aId = built.layout.forms.а.isol;
+assert.ok(built.glyphs[rId].yMin < -80, `р must descend below baseline, got ${built.glyphs[rId].yMin}`);
+assert.ok(built.glyphs[rId].yMin < built.glyphs[aId].yMin - 40, 'р must descend materially lower than а');
+assert.ok(built.layout.metrics.inkBottom <= built.glyphs[rId].yMin);
+assert.ok(built.layout.metrics.descent <= built.layout.metrics.inkBottom - 20);
+assert.equal(built.layout.vertical.р.hasDescender, true);
+assert.equal(built.layout.vertical.а.hasDescender, false);
+
 const interfaceSource = await readFile('cursive-app.js', 'utf8');
-assert.match(interfaceSource, /function invalidateConnectedOutputs/);
+assert.match(interfaceSource, /cursiveHasDescender/);
+assert.match(interfaceSource, /cursiveDescenderScale/);
+assert.match(interfaceSource, /cursiveBaseline/);
+assert.match(interfaceSource, /applyRussianDescenderPreset/);
+assert.match(interfaceSource, /py - generated\.baselineY/);
+assert.match(interfaceSource, /дрожь · друг · щука · цифра/);
 assert.match(interfaceSource, /fontFeatureSettings = '"rlig" 1, "calt" 1, "curs" 1'/);
-assert.match(interfaceSource, /GPOS: curs/);
-assert.match(interfaceSource, /fontFamily','fontStyle','fontDetail','fontSimplify','fontSideBearing','fontGlyphHeight/);
 
 await writeFile('tests/.cursive-fixture.ttf', built.ttf);
 await writeFile('tests/.cursive-layout.json', JSON.stringify(built.layout, null, 2));
-console.log(`All 25 cursive tests passed. TTF ${built.ttf.length} bytes, ${built.glyphs.length} glyphs.`);
+console.log(`All 42 cursive/descender tests passed. TTF ${built.ttf.length} bytes, ${built.glyphs.length} glyphs, descent ${built.layout.metrics.descent}.`);

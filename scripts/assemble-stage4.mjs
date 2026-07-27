@@ -14,6 +14,7 @@ const targets = [
 ];
 const directSources = [
   'src/cursive-font-core.js',
+  'src/cursive-font-v3.js',
   'src/cursive-font.js',
   'cursive-app.js',
 ];
