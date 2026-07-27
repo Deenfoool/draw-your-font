@@ -24,8 +24,14 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 22
-      - name: Run segmentation tests
-        run: npm test
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install validators
+        run: python -m pip install --disable-pip-version-check fonttools brotli websocket-client
+      - name: Run deterministic tests
+        run: npm test && npm run test:fonttools
 
   deploy:
     needs: test
