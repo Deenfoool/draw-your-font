@@ -1,3 +1,4 @@
+import './assemble-stage4.mjs';
 import { build } from 'esbuild';
 import { copyFile, mkdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
