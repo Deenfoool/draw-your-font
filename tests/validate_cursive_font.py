@@ -19,9 +19,15 @@ missing = sorted(required.difference(font.keys()))
 if missing:
     raise RuntimeError(f'В связном шрифте отсутствуют таблицы: {missing}')
 
-gsub_features = [record.FeatureTag for record in font['GSUB'].table.FeatureList.FeatureRecord]
+gsub_feature_records = font['GSUB'].table.FeatureList.FeatureRecord
+gsub_features = [record.FeatureTag for record in gsub_feature_records]
 if gsub_features != ['calt', 'rlig']:
     raise RuntimeError(f'Неожиданные GSUB-функции: {gsub_features}')
+
+feature_lookups = {record.FeatureTag: list(record.Feature.LookupListIndex) for record in gsub_feature_records}
+expected_feature_lookups = {'calt': [1, 3, 5], 'rlig': [1, 3, 5]}
+if feature_lookups != expected_feature_lookups:
+    raise RuntimeError(f'GSUB-функции ссылаются не на контекстные lookup: {feature_lookups}')
 
 gsub_scripts = [record.ScriptTag for record in font['GSUB'].table.ScriptList.ScriptRecord]
 if gsub_scripts != ['DFLT', 'cyrl']:
@@ -95,6 +101,6 @@ if actual_words != expected_words:
     raise RuntimeError(f'Пробел не разорвал соединение: {actual_words}, ожидалось {expected_words}')
 
 print('Cursive FontTools and HarfBuzz validation: PASS')
-print('GSUB features:', gsub_features)
+print('GSUB features:', gsub_features, feature_lookups)
 print('GPOS feature:', gpos_features[0], f'anchors entry={entry_count} exit={exit_count}')
 print('Shaped мама:', actual_mama)
