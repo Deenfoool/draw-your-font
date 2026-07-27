@@ -49,7 +49,17 @@ for (const [partsDirectory, outputPath] of targets) {
     throw new Error(`Cannot assemble ${outputPath} from ${partsDirectory}: ${error.message}`, { cause: error });
   }
   if (outputPath === 'stage4-app.js') {
-    source = Buffer.concat([source, Buffer.from("\nimport './stage4-recovery-app.js';\nimport './cursive-app.js';\n", 'utf8')]);
+    source = Buffer.concat([source, Buffer.from(`
+import './stage4-recovery-app.js';
+import './cursive-app.js';
+if (!document.querySelector('link[data-dyfr-cursive]')) {
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = './cursive.css';
+  link.dataset.dyfrCursive = '1';
+  document.head.append(link);
+}
+`, 'utf8')]);
   }
   await writeFile(resolve(root, outputPath), source);
   console.log(`Assembled ${outputPath} (${source.length} bytes, ${parts.length} verified parts).`);
