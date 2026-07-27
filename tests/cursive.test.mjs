@@ -70,11 +70,14 @@ const built = buildCursiveTrueTypeFont(project, { detail: 96, simplify: 0.4, gly
 assert.equal(validateCursiveTrueType(built.ttf).length, 0);
 const tags = parseSfntDirectory(built.ttf).map(({ tag }) => tag);
 assert.ok(tags.includes('GSUB'));
+assert.ok(tags.includes('GPOS'));
 assert.ok(tags.includes('kern'));
+assert.ok(built.glyphs.some((glyph) => glyph.cursiveEntry));
+assert.ok(built.glyphs.some((glyph) => glyph.cursiveExit));
 assert.equal(built.layout.forms.м.init > built.layout.forms.м.isol, true);
 assert.equal(built.layout.forms.м.medi > built.layout.forms.м.init, true);
 assert.equal(built.layout.forms.м.fina > built.layout.forms.м.medi, true);
 
 await writeFile('tests/.cursive-fixture.ttf', built.ttf);
 await writeFile('tests/.cursive-layout.json', JSON.stringify(built.layout, null, 2));
-console.log(`All 12 cursive tests passed. TTF ${built.ttf.length} bytes, ${built.glyphs.length} glyphs.`);
+console.log(`All 15 cursive tests passed. TTF ${built.ttf.length} bytes, ${built.glyphs.length} glyphs.`);
