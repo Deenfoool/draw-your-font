@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('connected Cyrillic font builds and loads', async ({ page, browserName }) => {
+test('connected Cyrillic font builds shapes and loads', async ({ page, browserName }) => {
   await page.goto('/');
   await page.waitForFunction(() => window.__drawYourFontCursive && document.querySelector('#cursiveBuilder'));
   const result = await page.evaluate(async () => {
@@ -29,22 +29,29 @@ test('connected Cyrillic font builds and loads', async ({ page, browserName }) =
     const face = new FontFace(family, buffer);
     await face.load();
     document.fonts.add(face);
-    const sample = document.createElement('span');
-    sample.textContent = 'мама';
-    sample.style.cssText = `font-family:'${family}';font-size:64px;font-feature-settings:'rlig' 1,'calt' 1;font-variant-ligatures:common-ligatures contextual`;
-    document.body.append(sample);
+    const makeSample = (enabled) => {
+      const sample = document.createElement('span');
+      sample.textContent = 'мама';
+      sample.style.cssText = `position:absolute;left:0;top:${enabled ? 120 : 0}px;font-family:'${family}';font-size:64px;font-feature-settings:'rlig' ${enabled ? 1 : 0},'calt' ${enabled ? 1 : 0};font-variant-ligatures:${enabled ? 'common-ligatures contextual' : 'none'}`;
+      document.body.append(sample);
+      return sample;
+    };
+    const plain = makeSample(false);
+    const connected = makeSample(true);
     await document.fonts.ready;
     const loaded = document.fonts.check(`64px '${family}'`, 'мама');
-    const rect = sample.getBoundingClientRect();
-    sample.remove();
-    document.fonts.delete(face);
-    return { forms, errors, tables, loaded, width: rect.width, glyphCount: built.glyphs.length, card: Boolean(document.querySelector('#cursiveBuilder')) };
+    const plainWidth = plain.getBoundingClientRect().width;
+    const connectedWidth = connected.getBoundingClientRect().width;
+    plain.remove(); connected.remove(); document.fonts.delete(face);
+    return { forms, errors, tables, loaded, plainWidth, connectedWidth, glyphCount: built.glyphs.length, card: Boolean(document.querySelector('#cursiveBuilder')) };
   });
   expect(result.forms).toEqual(['init', 'medi', 'medi', 'fina']);
   expect(result.errors).toEqual([]);
   expect(result.tables).toContain('GSUB');
   expect(result.loaded).toBe(true);
-  expect(result.width).toBeGreaterThan(0);
+  expect(result.plainWidth).toBeGreaterThan(0);
+  expect(result.connectedWidth).toBeGreaterThan(0);
+  expect(Math.abs(result.connectedWidth - result.plainWidth)).toBeGreaterThan(1);
   expect(result.glyphCount).toBeGreaterThan(10);
   expect(result.card).toBe(true);
   test.info().annotations.push({ type: 'browser', description: browserName });
