@@ -114,7 +114,10 @@ Object.assign(window,{renderTemplatePage,rgbaToGray,computeHomography,warpGraysc
               const blob=await new Promise(resolve=>pc.toBlob(resolve,'image/png'));
               const file=new File([blob],'washed-rotated-page.png',{type:'image/png'});
               const input=document.querySelector('#scanFiles');const dt=new DataTransfer();dt.items.add(file);input.files=dt.files;input.dispatchEvent(new Event('change',{bubbles:true}));
-              await window.__drawYourFontProject.processScanFiles();
+              const nativeCreateImageBitmap=window.createImageBitmap;
+              window.createImageBitmap=async()=>{throw new DOMException('The source image could not be decoded.','InvalidStateError');};
+              try { await window.__drawYourFontProject.processScanFiles(); }
+              finally { window.createImageBitmap=nativeCreateImageBitmap; }
               const before=window.__drawYourFontProject.getState();
               if (!before.project) return {debug:true,status:document.querySelector('#scanStatus').textContent,report:document.querySelector('#scanReport').textContent,pages:before.scans.length};
               const exported=window.__drawYourFontProject.exportProject();
@@ -122,7 +125,7 @@ Object.assign(window,{renderTemplatePage,rgbaToGray,computeHomography,warpGraysc
               document.querySelector('#editorAutoMetrics').click();
               document.querySelector('#kerningLeft').value='А';document.querySelector('#kerningRight').value='В';document.querySelector('#kerningValue').value='-55';document.querySelector('#kerningSet').click();
               const project=window.__drawYourFontProject.getProject();
-              return {glyphs:project.glyphs.length,first:project.glyphs[0].char,ink:project.glyphs[0].quality.inkCount,pages:before.scans.length,missing:document.querySelector('#scanReport').textContent,status:document.querySelector('#scanStatus').textContent,kerning:project.kerning['А|В'],editorShown:document.querySelector('#editorEmpty').hidden,serialized:exported.length,recovery:before.scans[0]?.recovery};
+              return {glyphs:project.glyphs.length,first:project.glyphs[0].char,ink:project.glyphs[0].quality.inkCount,pages:before.scans.length,missing:document.querySelector('#scanReport').textContent,status:document.querySelector('#scanStatus').textContent,kerning:project.kerning['А|В'],editorShown:document.querySelector('#editorEmpty').hidden,serialized:exported.length,recovery:before.scans[0]?.recovery,decoder:before.scans[0]?.decoder};
             })()''')
             if result.get('debug'):
                 raise RuntimeError(f'Debug scan failed: {result}')
@@ -134,6 +137,8 @@ Object.assign(window,{renderTemplatePage,rgbaToGray,computeHomography,warpGraysc
                 raise RuntimeError(f'Integration invalid: {result}')
             if not result.get('recovery') or result['recovery'].get('variant') == 'original':
                 raise RuntimeError(f'Low-contrast recovery was not used: {result}')
+            if result.get('decoder') != 'decodeWithImageElement':
+                raise RuntimeError(f'InvalidStateError fallback decoder was not used: {result}')
             print(json.dumps(result, ensure_ascii=False, indent=2))
         finally:
             ws.close()
