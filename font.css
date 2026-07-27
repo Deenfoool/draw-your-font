@@ -1,0 +1,41 @@
+.font-card { overflow: hidden; }
+.font-header { padding: 22px; display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; border-bottom: 1px solid var(--border); }
+.font-header h2 { margin-bottom: 8px; font-size: 1.4rem; }
+.font-header p:last-child { margin-bottom: 0; color: var(--muted); max-width: 780px; line-height: 1.5; }
+.font-stage { flex: 0 0 auto; padding: 7px 11px; border-radius: 999px; background: rgb(74 222 128 / 12%); color: var(--accent); font-size: .72rem; font-weight: 900; text-transform: uppercase; }
+.font-builder-grid { display: grid; grid-template-columns: minmax(260px, 360px) minmax(0, 1fr); }
+.font-controls { padding: 20px; border-right: 1px solid var(--border); }
+.font-field, .font-range { display: block; margin-bottom: 15px; }
+.font-field > span, .font-range > span { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 7px; color: var(--muted); font-size: .78rem; font-weight: 750; }
+.font-field input, .font-preview-toolbar input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: #0d141d; color: var(--text); outline: none; }
+.font-field input:focus, .font-preview-toolbar input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgb(56 189 248 / 10%); }
+.font-range input[type="range"] { width: 100%; accent-color: var(--accent-strong); }
+.font-range output { color: var(--accent); }
+.font-range small { display: block; margin-top: 4px; color: var(--muted); font-size: .7rem; line-height: 1.4; }
+.font-source-stats { padding: 12px; margin: 18px 0 12px; border: 1px solid var(--border); border-radius: 12px; background: rgb(11 15 20 / 42%); color: var(--muted); font-size: .76rem; line-height: 1.45; }
+.font-source-stats strong, .font-source-stats span { display: block; }
+.font-source-stats strong { color: var(--text); font-size: .95rem; }
+.font-build { width: 100%; }
+.font-progress { width: 100%; margin-top: 12px; accent-color: var(--accent-strong); }
+.font-status { min-height: 2.8em; margin: 11px 0 0; color: var(--muted); font-size: .75rem; line-height: 1.45; }
+.font-status[data-mode="ok"] { color: var(--accent); }
+.font-status[data-mode="busy"] { color: var(--warning); }
+.font-status[data-mode="error"] { color: var(--danger); }
+.font-output { min-width: 0; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+.font-preview-toolbar label { display: block; margin-bottom: 7px; color: var(--muted); font-size: .78rem; }
+.font-preview { min-height: 190px; padding: 24px; overflow-wrap: anywhere; border: 1px solid var(--border); border-radius: 14px; background: #f8fafc; color: #111827; font-size: clamp(2rem, 4vw, 4rem); line-height: 1.25; }
+.font-output-stats { padding: 10px 12px; border-radius: 10px; background: #0d141d; color: var(--muted); font-size: .76rem; }
+.font-css-label { color: var(--muted); font-size: .78rem; }
+.font-css { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: #090e14; color: #bbf7d0; font: .78rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; resize: vertical; }
+.font-downloads { display: flex; flex-wrap: wrap; gap: 8px; }
+.font-downloads .primary-button { margin-left: auto; }
+
+@media (max-width: 900px) {
+  .font-builder-grid { grid-template-columns: 1fr; }
+  .font-controls { border-right: 0; border-bottom: 1px solid var(--border); }
+}
+
+@media (max-width: 620px) {
+  .font-header { flex-direction: column; }
+  .font-downloads .primary-button { width: 100%; margin-left: 0; }
+}
