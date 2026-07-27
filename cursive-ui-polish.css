@@ -4,7 +4,9 @@
   padding: 20px;
   border-bottom: 1px solid var(--line, var(--border));
   align-items: center;
+  flex-wrap: wrap;
 }
+.cursive-card > .flow-header > div:first-child { flex: 1 1 520px; min-width: 0; }
 .cursive-card > .cursive-layout { padding: 20px; }
 .cursive-card:not(.is-expanded) > .flow-header { border-bottom-color: transparent; }
 .cursive-card:not(.is-expanded) > .cursive-layout { display: none !important; }
