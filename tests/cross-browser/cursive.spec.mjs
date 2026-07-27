@@ -32,7 +32,7 @@ test('connected Cyrillic font builds shapes and loads', async ({ page, browserNa
     const makeSample = (enabled) => {
       const sample = document.createElement('span');
       sample.textContent = 'мама';
-      sample.style.cssText = `position:absolute;left:0;top:${enabled ? 120 : 0}px;font-family:'${family}';font-size:64px;font-feature-settings:'rlig' ${enabled ? 1 : 0},'calt' ${enabled ? 1 : 0};font-variant-ligatures:${enabled ? 'common-ligatures contextual' : 'none'}`;
+      sample.style.cssText = `position:absolute;left:0;top:${enabled ? 120 : 0}px;font-family:'${family}';font-size:64px;font-feature-settings:'rlig' ${enabled ? 1 : 0},'calt' ${enabled ? 1 : 0},'curs' ${enabled ? 1 : 0};font-variant-ligatures:${enabled ? 'common-ligatures contextual' : 'none'}`;
       document.body.append(sample);
       return sample;
     };
@@ -48,6 +48,7 @@ test('connected Cyrillic font builds shapes and loads', async ({ page, browserNa
   expect(result.forms).toEqual(['init', 'medi', 'medi', 'fina']);
   expect(result.errors).toEqual([]);
   expect(result.tables).toContain('GSUB');
+  expect(result.tables).toContain('GPOS');
   expect(result.loaded).toBe(true);
   expect(result.plainWidth).toBeGreaterThan(0);
   expect(result.connectedWidth).toBeGreaterThan(0);
