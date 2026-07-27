@@ -70,6 +70,7 @@ function installWorkflowChoice() {
   }
 
   function unlockScanner() {
+    if (scannerUnlocked) return;
     scannerUnlocked = true;
     scanner.dataset.unlocked = 'true';
     if (activeMode === 'template') {
@@ -81,7 +82,6 @@ function installWorkflowChoice() {
 
   templateButton.addEventListener('click', () => selectMode('template'));
   manualButton.addEventListener('click', () => selectMode('manual'));
-  byId('templateDownload')?.addEventListener('click', unlockScanner);
   window.addEventListener('drawyourfont:template-downloaded', unlockScanner);
 
   window.__drawYourFontWorkflow = {
