@@ -16,7 +16,9 @@ SOURCES = [
     ROOT / 'src' / 'template.js',
     ROOT / 'src' / 'template-scanner.js',
     ROOT / 'src' / 'project.js',
+    ROOT / 'src' / 'scan-recovery.js',
     ROOT / 'stage4-app.js',
+    ROOT / 'stage4-recovery-app.js',
 ]
 PORT = 9898
 BROWSER = shutil.which('chromium') or shutil.which('google-chrome') or shutil.which('google-chrome-stable')
@@ -25,8 +27,9 @@ if not BROWSER:
 
 
 def strip_module(source):
-    source = re.sub(r"import\s*\{[\s\S]*?\}\s*from\s*['\"][^'\"]+['\"];?", '', source)
+    source = re.sub(r"import\s+(?:\{[\s\S]*?\}\s*from\s*)?['\"][^'\"]+['\"]\s*;?", '', source)
     source = re.sub(r'\bexport\s+', '', source)
+    source = source.replace('import.meta.url', "'http://127.0.0.1/src/scan-recovery.js'")
     return source
 
 
@@ -96,30 +99,30 @@ Object.assign(window,{renderTemplatePage,rgbaToGray,computeHomography,warpGraysc
               const ctx = canvas.getContext('2d', {alpha:false, willReadFrequently:true});
               renderTemplatePage(ctx, page, {dpi:101.6, showGuides:true});
               const sx=canvas.width/210, sy=canvas.height/297;
-              ctx.fillStyle='#111';
+              ctx.fillStyle='#777';
               for(const cell of page.cells){const cx=cell.centerX*sx, base=cell.baseline*sy;ctx.fillRect(cx-4,base-42,8,44);ctx.fillRect(cx-17,base-7,34,7);}
               const image=ctx.getImageData(0,0,canvas.width,canvas.height);
               const canonical=rgbaToGray(image.data,canvas.width,canvas.height);
+              for(let i=0;i<canonical.length;i++) canonical[i]=Math.round(178+(canonical[i]/255)*54);
               const pw=1180,ph=920;
               const quad=[{x:1020,y:65},{x:1085,y:845},{x:140,y:865},{x:85,y:90}];
               const corners=[{x:0,y:0},{x:canvas.width-1,y:0},{x:canvas.width-1,y:canvas.height-1},{x:0,y:canvas.height-1}];
               const h=computeHomography(quad,corners);
               const photo=warpGrayscale(canonical,canvas.width,canvas.height,h,pw,ph);
-              let markerDebug; try { markerDebug={groups:debugTemplateMarkerCandidates(photo,pw,ph).map(g=>g.slice(0,5).map(m=>({decoded:m.sample.decoded,box:m.box,density:m.density,shape:m.shapeScore}))),found:detectTemplateMarkers(photo,pw,ph).map(m=>({id:m.id,decoded:m.sample.decoded,box:m.box}))}; } catch(e){ markerDebug={error:e.message,groups:debugTemplateMarkerCandidates(photo,pw,ph).map(g=>g.slice(0,5).map(m=>({decoded:m.sample.decoded,box:m.box,density:m.density,shape:m.shapeScore})))}; }
               const pc=document.createElement('canvas');pc.width=pw;pc.height=ph;const pctx=pc.getContext('2d');const out=pctx.createImageData(pw,ph);
               for(let i=0;i<photo.length;i++){const p=i*4;out.data[p]=out.data[p+1]=out.data[p+2]=photo[i];out.data[p+3]=255;}pctx.putImageData(out,0,0);
               const blob=await new Promise(resolve=>pc.toBlob(resolve,'image/png'));
-              const file=new File([blob],'rotated-page.png',{type:'image/png'});
+              const file=new File([blob],'washed-rotated-page.png',{type:'image/png'});
               const input=document.querySelector('#scanFiles');const dt=new DataTransfer();dt.items.add(file);input.files=dt.files;input.dispatchEvent(new Event('change',{bubbles:true}));
               await window.__drawYourFontProject.processScanFiles();
               const before=window.__drawYourFontProject.getState();
-              if (!before.project) return {debug:true,markerDebug,status:document.querySelector('#scanStatus').textContent,report:document.querySelector('#scanReport').textContent,pages:before.scans.length};
+              if (!before.project) return {debug:true,status:document.querySelector('#scanStatus').textContent,report:document.querySelector('#scanReport').textContent,pages:before.scans.length};
               const exported=window.__drawYourFontProject.exportProject();
               window.__drawYourFontProject.importProject(exported);
               document.querySelector('#editorAutoMetrics').click();
               document.querySelector('#kerningLeft').value='А';document.querySelector('#kerningRight').value='В';document.querySelector('#kerningValue').value='-55';document.querySelector('#kerningSet').click();
               const project=window.__drawYourFontProject.getProject();
-              return {glyphs:project.glyphs.length,first:project.glyphs[0].char,ink:project.glyphs[0].quality.inkCount,pages:before.scans.length,missing:document.querySelector('#scanReport').textContent,status:document.querySelector('#scanStatus').textContent,kerning:project.kerning['А|В'],editorShown:document.querySelector('#editorEmpty').hidden,serialized:exported.length};
+              return {glyphs:project.glyphs.length,first:project.glyphs[0].char,ink:project.glyphs[0].quality.inkCount,pages:before.scans.length,missing:document.querySelector('#scanReport').textContent,status:document.querySelector('#scanStatus').textContent,kerning:project.kerning['А|В'],editorShown:document.querySelector('#editorEmpty').hidden,serialized:exported.length,recovery:before.scans[0]?.recovery};
             })()''')
             if result.get('debug'):
                 raise RuntimeError(f'Debug scan failed: {result}')
@@ -129,6 +132,8 @@ Object.assign(window,{renderTemplatePage,rgbaToGray,computeHomography,warpGraysc
                 raise RuntimeError(f'Page/kerning invalid: {result}')
             if not result['editorShown'] or result['serialized'] < 1000:
                 raise RuntimeError(f'Integration invalid: {result}')
+            if not result.get('recovery') or result['recovery'].get('variant') == 'original':
+                raise RuntimeError(f'Low-contrast recovery was not used: {result}')
             print(json.dumps(result, ensure_ascii=False, indent=2))
         finally:
             ws.close()
