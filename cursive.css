@@ -1,0 +1,24 @@
+.cursive-card { overflow: hidden; }
+.cursive-layout { display:grid; grid-template-columns:minmax(290px,.62fr) minmax(0,1.38fr); gap:22px; }
+.cursive-controls { display:grid; align-content:start; gap:13px; }
+.cursive-controls > label:not(.cursive-enable), .cursive-form-adjustments label, .cursive-word-preview label { display:grid; gap:6px; color:var(--muted); font-size:13px; }
+.cursive-enable { display:flex; gap:11px; align-items:flex-start; border:1px solid #166534; background:#052e16; padding:13px; border-radius:12px; }
+.cursive-enable span { display:grid; gap:3px; } .cursive-enable small { color:#86efac; }
+.cursive-joins { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.cursive-joins label { border:1px solid var(--line); border-radius:9px; padding:9px; background:#0b1220; color:var(--text); }
+.cursive-canvas-shell { min-height:420px; border:1px solid var(--line); border-radius:14px; background:#fff; position:relative; display:grid; place-items:center; overflow:hidden; }
+#cursiveAnchorCanvas { width:100%; height:auto; touch-action:none; cursor:crosshair; }
+#cursiveEmpty { position:absolute; color:#64748b; }
+.cursive-help { color:var(--muted); margin:8px 0 14px; font-size:13px; }
+.cursive-form-adjustments { display:grid; grid-template-columns:1.35fr repeat(4,1fr); gap:8px; align-items:end; }
+.cursive-form-adjustments input, .cursive-form-adjustments select { width:100%; }
+.cursive-forms { display:grid; grid-template-columns:repeat(4,minmax(150px,1fr)); gap:10px; margin-top:12px; }
+.cursive-form { border:1px solid var(--line); border-radius:11px; overflow:hidden; background:#fff; cursor:pointer; }
+.cursive-form.is-active { border-color:var(--accent-2); box-shadow:0 0 0 2px #38bdf844; }
+.cursive-form canvas { width:100%; height:auto; display:block; }
+.cursive-word-preview { margin-top:20px; display:grid; gap:10px; border-top:1px solid var(--line); padding-top:18px; }
+#cursiveWordCanvas { width:100%; height:auto; border:1px solid var(--line); border-radius:14px; background:#fff; }
+#cursiveSequence { color:var(--muted); font-family:ui-monospace,Consolas,monospace; font-size:12px; overflow-wrap:anywhere; margin:0; }
+.manual-corner-panel [data-mode="error"] { color:#fca5a5; }
+@media(max-width:1050px){.cursive-layout{grid-template-columns:1fr}.cursive-form-adjustments{grid-template-columns:1fr 1fr 1fr}.cursive-forms{grid-template-columns:1fr 1fr}}
+@media(max-width:620px){.cursive-form-adjustments{grid-template-columns:1fr 1fr}.cursive-forms{grid-template-columns:1fr}.cursive-joins{grid-template-columns:1fr}}
