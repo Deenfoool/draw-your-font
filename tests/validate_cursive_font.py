@@ -14,22 +14,42 @@ if not FONT_PATH.exists() or not LAYOUT_PATH.exists():
 layout = json.loads(LAYOUT_PATH.read_text(encoding='utf-8'))
 font = TTFont(FONT_PATH)
 
-required = {'head', 'hhea', 'maxp', 'OS/2', 'hmtx', 'cmap', 'loca', 'glyf', 'name', 'post', 'GSUB'}
+required = {'head', 'hhea', 'maxp', 'OS/2', 'hmtx', 'cmap', 'loca', 'glyf', 'name', 'post', 'GSUB', 'GPOS'}
 missing = sorted(required.difference(font.keys()))
 if missing:
     raise RuntimeError(f'В связном шрифте отсутствуют таблицы: {missing}')
 
-feature_tags = [record.FeatureTag for record in font['GSUB'].table.FeatureList.FeatureRecord]
-if feature_tags != ['calt', 'rlig']:
-    raise RuntimeError(f'Неожиданные GSUB-функции: {feature_tags}')
+gsub_features = [record.FeatureTag for record in font['GSUB'].table.FeatureList.FeatureRecord]
+if gsub_features != ['calt', 'rlig']:
+    raise RuntimeError(f'Неожиданные GSUB-функции: {gsub_features}')
 
-script_tags = [record.ScriptTag for record in font['GSUB'].table.ScriptList.ScriptRecord]
-if script_tags != ['DFLT', 'cyrl']:
-    raise RuntimeError(f'Неожиданные GSUB-скрипты: {script_tags}')
+gsub_scripts = [record.ScriptTag for record in font['GSUB'].table.ScriptList.ScriptRecord]
+if gsub_scripts != ['DFLT', 'cyrl']:
+    raise RuntimeError(f'Неожиданные GSUB-скрипты: {gsub_scripts}')
 
-lookup_types = [lookup.LookupType for lookup in font['GSUB'].table.LookupList.Lookup]
-if lookup_types != [1, 6, 1, 6, 1, 6]:
-    raise RuntimeError(f'Неверная последовательность GSUB lookup: {lookup_types}')
+gsub_lookups = [lookup.LookupType for lookup in font['GSUB'].table.LookupList.Lookup]
+if gsub_lookups != [1, 6, 1, 6, 1, 6]:
+    raise RuntimeError(f'Неверная последовательность GSUB lookup: {gsub_lookups}')
+
+gpos_features = [record.FeatureTag for record in font['GPOS'].table.FeatureList.FeatureRecord]
+if gpos_features != ['curs']:
+    raise RuntimeError(f'Неожиданные GPOS-функции: {gpos_features}')
+
+gpos_scripts = [record.ScriptTag for record in font['GPOS'].table.ScriptList.ScriptRecord]
+if gpos_scripts != ['DFLT', 'cyrl']:
+    raise RuntimeError(f'Неожиданные GPOS-скрипты: {gpos_scripts}')
+
+gpos_lookups = font['GPOS'].table.LookupList.Lookup
+if [lookup.LookupType for lookup in gpos_lookups] != [3]:
+    raise RuntimeError('GPOS должен содержать один Cursive Attachment lookup типа 3')
+
+cursive_subtable = gpos_lookups[0].SubTable[0]
+if cursive_subtable.PosFormat != 1 or cursive_subtable.EntryExitCount < 2:
+    raise RuntimeError('GPOS cursive attachment имеет неверный формат или слишком мало записей')
+entry_count = sum(record.EntryAnchor is not None for record in cursive_subtable.EntryExitRecord)
+exit_count = sum(record.ExitAnchor is not None for record in cursive_subtable.EntryExitRecord)
+if not entry_count or not exit_count:
+    raise RuntimeError('В GPOS отсутствуют входные или выходные курсивные якоря')
 
 font_bytes = FONT_PATH.read_bytes()
 face = hb.Face(font_bytes)
@@ -44,8 +64,9 @@ def shape(text):
     buffer.script = 'Cyrl'
     buffer.language = 'ru'
     buffer.direction = 'ltr'
-    hb.shape(hb_font, buffer, {'rlig': True, 'calt': True})
+    hb.shape(hb_font, buffer, {'rlig': True, 'calt': True, 'curs': True})
     return [info.codepoint for info in buffer.glyph_infos]
+
 
 expected_mama = [
     layout['forms']['м']['init'],
@@ -74,5 +95,6 @@ if actual_words != expected_words:
     raise RuntimeError(f'Пробел не разорвал соединение: {actual_words}, ожидалось {expected_words}')
 
 print('Cursive FontTools and HarfBuzz validation: PASS')
-print('Features:', feature_tags)
+print('GSUB features:', gsub_features)
+print('GPOS feature:', gpos_features[0], f'anchors entry={entry_count} exit={exit_count}')
 print('Shaped мама:', actual_mama)
