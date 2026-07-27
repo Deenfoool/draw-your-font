@@ -12,11 +12,11 @@ const HEIC_MODULE_URL = new URL('../vendor/heic-codec.mjs', import.meta.url).hre
 const MAX_IMAGE_DIMENSION = 3200;
 const MAX_IMAGE_PIXELS = 12_000_000;
 
-function clamp(value, min, max) {
+function recoveryClamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
-function percentile(values, fraction) {
+function recoveryPercentile(values, fraction) {
   const histogram = new Uint32Array(256);
   for (const value of values) histogram[value] += 1;
   const target = Math.max(0, Math.min(values.length - 1, Math.floor(values.length * fraction)));
@@ -29,11 +29,11 @@ function percentile(values, fraction) {
 }
 
 export function normalizeGray(gray) {
-  const low = percentile(gray, 0.015);
-  const high = percentile(gray, 0.985);
+  const low = recoveryPercentile(gray, 0.015);
+  const high = recoveryPercentile(gray, 0.985);
   if (high - low < 12) return new Uint8Array(gray);
   const scale = 255 / (high - low);
-  return Uint8Array.from(gray, (value) => clamp(Math.round((value - low) * scale), 0, 255));
+  return Uint8Array.from(gray, (value) => recoveryClamp(Math.round((value - low) * scale), 0, 255));
 }
 
 export function strengthenDarkDetails(gray, width, height) {
@@ -43,9 +43,9 @@ export function strengthenDarkDetails(gray, width, height) {
     for (let x = 0; x < width; x += 1) {
       let minimum = 255;
       for (let dy = -1; dy <= 1; dy += 1) {
-        const py = clamp(y + dy, 0, height - 1);
+        const py = recoveryClamp(y + dy, 0, height - 1);
         for (let dx = -1; dx <= 1; dx += 1) {
-          const px = clamp(x + dx, 0, width - 1);
+          const px = recoveryClamp(x + dx, 0, width - 1);
           minimum = Math.min(minimum, normalized[py * width + px]);
         }
       }
