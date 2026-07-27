@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { gunzipSync } from 'node:zlib';
 import { dirname, resolve } from 'node:path';
@@ -10,8 +11,12 @@ const targets = [
   ['source-parts/stage4-app.js', 'stage4-app.js'],
   ['source-parts/font-builder.js', 'src/font-builder.js'],
   ['source-parts/cursive-font.js', 'src/cursive-font.js'],
-  ['source-parts/cursive-app.js', 'cursive-app.js'],
+  ['source-parts/cursive-app-v2.js', 'cursive-app.js'],
 ];
+const expectedSha256 = new Map([
+  ['src/cursive-font.js', '5b481e88d40980ef61eab9ee5ca585a11613e300a5dcbd91f586ec74506139b4'],
+  ['cursive-app.js', '50d7a81e4986635edb28898ac9114a473ff9b3a5c6c1177219619720d6b5bfcc'],
+]);
 
 for (const [partsDirectory, outputPath] of targets) {
   const directory = resolve(root, partsDirectory);
@@ -21,6 +26,11 @@ for (const [partsDirectory, outputPath] of targets) {
   let source = gunzipSync(Buffer.from(encoded, 'base64'));
   if (outputPath === 'stage4-app.js') {
     source = Buffer.concat([source, Buffer.from("\nimport './stage4-recovery-app.js';\nimport './cursive-app.js';\n", 'utf8')]);
+  }
+  const expected = expectedSha256.get(outputPath);
+  if (expected) {
+    const actual = createHash('sha256').update(source).digest('hex');
+    if (actual !== expected) throw new Error(`SHA-256 mismatch for ${outputPath}: ${actual}`);
   }
   await writeFile(resolve(root, outputPath), source);
   console.log(`Assembled ${outputPath} (${source.length} bytes).`);
