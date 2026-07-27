@@ -32,12 +32,12 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Install independent validators
         run: python -m pip install --disable-pip-version-check fonttools brotli websocket-client
-      - name: Build autonomous WOFF2 runtime
+      - name: Build autonomous browser runtimes
         run: npm run build:runtime
       - name: Run deterministic and Chromium tests
         run: npm run test:all
       - name: Verify generated runtime files
-        run: test -s vendor/woff2-codec.mjs && test -s vendor/woff2.wasm
+        run: test -s vendor/woff2-codec.mjs && test -s vendor/woff2.wasm && test -s vendor/heic-codec.mjs && test -s vendor/heic-to-LICENSE.txt
 
   cross-browser-tests:
     runs-on: ubuntu-latest
@@ -54,7 +54,7 @@ jobs:
           python-version: '3.12'
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
-      - name: Build autonomous WOFF2 runtime
+      - name: Build autonomous browser runtimes
         run: npm run build:runtime
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium firefox webkit
@@ -76,10 +76,10 @@ jobs:
           node-version: 22
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
-      - name: Build autonomous WOFF2 runtime
+      - name: Build autonomous browser runtimes
         run: npm run build:runtime
       - name: Remove development-only files
-        run: rm -rf node_modules tests scripts playwright.config.mjs package-lock.json
+        run: rm -rf node_modules tests scripts source-parts playwright.config.mjs package-lock.json
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
       - name: Upload static site
