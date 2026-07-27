@@ -48,6 +48,7 @@ function installWorkflowChoice() {
   scanner.hidden = true;
   manual.hidden = true;
   manual.open = false;
+  document.body.classList.add('dyfr-flow-ready');
 
   function updateButtons() {
     templateButton.setAttribute('aria-pressed', String(activeMode === 'template'));
