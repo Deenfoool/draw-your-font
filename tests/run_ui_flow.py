@@ -112,18 +112,20 @@ with tempfile.TemporaryDirectory(prefix='dyfr-ui-flow-') as temp:
               const scannerAfterReturn = visible(scanner);
 
               const projectModule = await import('/src/project.js');
-              const makeGlyph = char => {
+              const makeGlyph = (char, index) => {
                 const width = 54, height = 72, mask = new Uint8Array(width * height);
                 for (let y = 18; y <= 61; y += 1) for (let x = 10; x <= 43; x += 1) {
                   if (x < 14 || x > 39 || y < 22 || y > 56) mask[y * width + x] = 1;
                 }
                 return projectModule.normalizeGlyphRecord({
+                  id: `ui-${index}-${char}`,
                   char, width, height, mask,
                   guides: { capY: 8, xHeightY: 25, baselineY: 57, descenderY: 68 },
-                });
+                }, index);
               };
               const project = projectModule.createEmptyProject({ title: 'UI Flow Test' });
-              project.glyphs = [...'мадарожьщукциф'].map(makeGlyph);
+              const chars = ['м','а','д','р','о','ж','ь','щ','у','к','ц','и','ф'];
+              project.glyphs = chars.map(makeGlyph);
               window.__drawYourFontProject.setProject(project, { scroll: false });
               await waitFor(() => document.querySelector('#cursiveCharacter')?.options.length >= 8);
 
