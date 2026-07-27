@@ -21,6 +21,17 @@ The WebAssembly binary distributed by `fonteditor-core` contains Google's WOFF2 
 
 It is copied during the build to `vendor/woff2.wasm` and loaded from the same origin as the application.
 
+## heic-to and libheif
+
+Used only when the browser cannot decode a selected HEIC or HEIF photograph natively.
+
+- Project: https://github.com/hoppergee/heic-to
+- Version: 1.5.2
+- License: GNU LGPL 3.0 or later
+- Underlying decoder: libheif 1.22.2
+
+The unmodified CSP-compatible distribution file is copied separately to `vendor/heic-codec.mjs`; it is not merged into the application's own source. Its complete license is copied to `vendor/heic-to-LICENSE.txt`, and the corresponding package source remains available from the project and npm package listed above. The deployed application loads this module from the same origin and only on demand for HEIC/HEIF input.
+
 ## Scope
 
-The template generator, scanner, perspective correction, glyph editor, project persistence, vectorization, TrueType/WOFF writer, metrics, kerning, CSS and ZIP implementations are part of this repository and do not require `fonteditor-core` at runtime except when WOFF2 output is requested.
+The template generator, scanner, perspective correction, recovery interface, glyph editor, project persistence, vectorization, TrueType/WOFF writer, metrics, kerning, CSS and ZIP implementations are part of this repository. Third-party runtime code is used only for WOFF2 output and HEIC/HEIF decoding.
