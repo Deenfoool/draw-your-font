@@ -1,0 +1,40 @@
+.cursive-card { overflow: hidden; }
+.cursive-card > .flow-header {
+  margin: 0;
+  padding: 20px;
+  border-bottom: 1px solid var(--line, var(--border));
+  align-items: center;
+}
+.cursive-card > .cursive-layout { padding: 20px; }
+.cursive-card:not(.is-expanded) > .flow-header { border-bottom-color: transparent; }
+.cursive-card:not(.is-expanded) > .cursive-layout { display: none !important; }
+.cursive-disclosure {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #166534;
+  border-radius: 12px;
+  background: #052e16;
+  cursor: pointer;
+}
+.cursive-disclosure input { width: 18px; height: 18px; accent-color: var(--accent-strong); }
+.cursive-disclosure span { display: grid; gap: 2px; }
+.cursive-disclosure strong { font-size: .82rem; }
+.cursive-disclosure small { color: #86efac; font-size: .7rem; }
+.cursive-controls > .cursive-enable { display: none !important; }
+.cursive-form-adjustments { display: none !important; }
+.cursive-word-preview textarea {
+  width: 100%;
+  min-height: 78px;
+  margin: 0;
+  resize: vertical;
+}
+#cursiveWordCanvas { display: block; width: 100%; height: auto; }
+
+@media (max-width: 760px) {
+  .cursive-card > .flow-header { padding: 16px; }
+  .cursive-card > .cursive-layout { padding: 16px; }
+  .cursive-disclosure { width: 100%; margin-top: 10px; }
+}
