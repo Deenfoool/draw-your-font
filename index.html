@@ -3,139 +3,148 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Создание русского рукописного шрифта в TTF, WOFF и WOFF2 прямо в браузере.">
+  <meta name="description" content="Полностью локальное создание русского рукописного шрифта из печатного шаблона или фотографии.">
   <title>Draw Your Font RU</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="template.css">
   <link rel="stylesheet" href="font.css">
+  <link rel="stylesheet" href="stage4.css">
 </head>
 <body>
   <header class="topbar">
     <div>
-      <p class="eyebrow">Локально · Без загрузки фотографии на сервер</p>
+      <p class="eyebrow">Локально · Без загрузки фотографий на сервер</p>
       <h1>Draw Your Font RU</h1>
-      <p class="subtitle">Распечатайте русский шаблон, заполните его, распознайте символы и скачайте настоящий устанавливаемый шрифт.</p>
+      <p class="subtitle">Распечатайте шаблон, заполните его, загрузите фотографии, исправьте буквы и скачайте готовый TTF, WOFF и WOFF2.</p>
     </div>
-    <div class="stage-badge"><span>Этапы 1–3</span><strong>Шаблон, разметка и шрифт</strong></div>
+    <div class="stage-badge"><span>Полный цикл</span><strong>Этапы 1–4</strong></div>
   </header>
 
-  <main class="workspace">
-    <aside class="sidebar card">
-      <section>
-        <h2>1. Фотография</h2>
-        <label class="dropzone" id="dropzone" for="fileInput">
-          <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif">
-          <span class="dropzone-title">Выберите или перетащите фото</span>
-          <span class="dropzone-note">PNG, JPG, WEBP. Изображение обрабатывается только на вашем устройстве.</span>
-        </label>
-        <div class="file-meta" id="fileMeta">Файл ещё не выбран</div>
-      </section>
-
-      <section>
-        <div class="section-title-row"><h2>2. Очистка</h2><button class="text-button" id="resetSettings" type="button">По умолчанию</button></div>
-        <label class="control-row"><span>Отделение чернил <output id="thresholdDeltaValue">34</output></span><input id="thresholdDelta" type="range" min="8" max="90" value="34"><small>Больше значение убирает слабые тени, но может съесть светлые штрихи.</small></label>
-        <label class="control-row"><span>Максимальная яркость чернил <output id="absoluteCapValue">195</output></span><input id="absoluteCap" type="range" min="70" max="245" value="195"><small>Уменьшите, если клетки и линии бумаги принимаются за буквы.</small></label>
-        <label class="control-row"><span>Размер области фона <output id="backgroundRadiusValue">34</output></span><input id="backgroundRadius" type="range" min="6" max="100" value="34"><small>Большая область лучше компенсирует широкие тени.</small></label>
-        <label class="control-row"><span>Минимальная площадь <output id="minAreaValue">18</output></span><input id="minArea" type="range" min="3" max="300" value="18"><small>Поднимите значение, если остаётся точечный шум.</small></label>
-        <label class="control-row"><span>Объединение частей <output id="mergeStrengthValue">55</output></span><input id="mergeStrength" type="range" min="0" max="100" value="55"><small>Отвечает за точки Ё/Й и разорванные штрихи.</small></label>
-        <label class="checkbox-row"><input id="closeMask" type="checkbox" checked><span>Залечивать небольшие разрывы штрихов</span></label>
-        <button class="primary-button" id="processButton" type="button" disabled>Найти буквы</button>
-      </section>
-
-      <section>
-        <h2>3. Подписи</h2>
-        <label class="select-label" for="charsetSelect">Набор символов</label>
-        <select id="charsetSelect">
-          <option value="ru-full">Русский: заглавные + строчные + цифры</option>
-          <option value="ru-upper">Русский: только заглавные</option>
-          <option value="ru-lower">Русский: только строчные</option>
-          <option value="custom">Свой порядок</option>
-        </select>
-        <textarea id="customCharset" rows="3" hidden aria-label="Свой порядок символов"></textarea>
-        <button class="secondary-button" id="assignLabels" type="button" disabled>Расставить подписи по порядку</button>
-      </section>
-    </aside>
-
-    <section class="main-panel">
-      <section class="card template-card" id="templateBuilder">
-        <header class="template-header">
-          <div><p class="eyebrow">Печатный шаблон</p><h2>Создайте русские листы A4</h2><p>PDF формируется прямо в браузере. Метки по углам, нумерация и направляющие подготовлены для последующей фотографии.</p></div>
-          <span class="template-stage">Этап 2</span>
-        </header>
-        <div class="template-builder-grid">
-          <div class="template-controls">
-            <label class="template-field"><span>Название шрифта</span><input id="templateTitle" type="text" value="Мой русский шрифт" maxlength="80"></label>
-            <label class="template-field"><span>Набор символов</span><select id="templateCharset"><option value="ru-full">Русский полный: 88 символов</option><option value="ru-letters">Русские буквы: 66 символов</option><option value="ru-upper">Только заглавные: 33 символа</option><option value="ru-lower">Только строчные: 33 символа</option><option value="ru-extended">Расширенный: 98 символов</option><option value="custom">Свой набор</option></select><textarea id="templateCustomCharset" rows="4" hidden placeholder="Введите символы в нужном порядке"></textarea></label>
-            <label class="template-field"><span>Размер ячеек</span><select id="templateLayout"><option value="balanced">Оптимальный: 6 × 8</option><option value="compact">Компактный: 7 × 7</option><option value="standard">Свободный: 6 × 7</option><option value="large">Крупный: 5 × 7</option></select></label>
-            <label class="template-check"><input id="templateGuides" type="checkbox" checked><span>Показывать базовую линию, высоту строчных и центр ячейки</span></label>
-            <div class="template-summary" id="templateSummary">Подготовка шаблона…</div>
-            <button class="primary-button template-download" id="templateDownload" type="button">Скачать PDF-шаблон</button>
-            <progress class="template-progress" id="templateProgress" value="0" max="1" hidden></progress>
-            <p class="template-status" id="templateStatus" data-mode="idle">Подготовка шаблона…</p>
-          </div>
-          <div class="template-preview-panel">
-            <div class="template-preview-toolbar"><span class="template-page-label" id="templatePageLabel">Страница 1</span><div><button class="secondary-button compact" id="templatePrevious" type="button">Назад</button><button class="secondary-button compact" id="templateNext" type="button">Дальше</button></div></div>
-            <div class="template-preview-shell"><canvas id="templatePreview" width="595" height="842"></canvas></div>
-          </div>
+  <main class="app-flow">
+    <section class="card template-card" id="templateBuilder">
+      <header class="template-header">
+        <div><p class="eyebrow">Шаг 1</p><h2>Создайте новый машинно-читаемый шаблон</h2><p>Разные метки на углах определяют поворот и перспективу. Код в шапке хранит номер страницы, сетку и набор символов.</p></div>
+        <span class="template-stage">A4 PDF</span>
+      </header>
+      <div class="template-builder-grid">
+        <div class="template-controls">
+          <label class="template-field"><span>Название шрифта</span><input id="templateTitle" type="text" value="Мой русский шрифт" maxlength="80"></label>
+          <label class="template-field"><span>Набор символов</span><select id="templateCharset"><option value="ru-full">Русский полный: 88 символов</option><option value="ru-letters">Русские буквы: 66 символов</option><option value="ru-upper">Только заглавные: 33</option><option value="ru-lower">Только строчные: 33</option><option value="ru-extended">Расширенный: 98</option><option value="custom">Свой набор</option></select><textarea id="templateCustomCharset" rows="3" hidden placeholder="Введите символы в нужном порядке"></textarea></label>
+          <label class="template-field"><span>Размер ячеек</span><select id="templateLayout"><option value="balanced">Оптимальный: 6 × 8</option><option value="compact">Компактный: 7 × 7</option><option value="standard">Свободный: 6 × 7</option><option value="large">Крупный: 5 × 7</option></select></label>
+          <label class="template-check"><input id="templateGuides" type="checkbox" checked><span>Печатать направляющие</span></label>
+          <div class="template-summary" id="templateSummary">Подготовка…</div>
+          <button class="primary-button" id="templateDownload" type="button">Скачать новый PDF</button>
+          <progress class="template-progress" id="templateProgress" value="0" max="1" hidden></progress>
+          <p class="template-status" id="templateStatus" data-mode="idle">Подготовка шаблона…</p>
         </div>
-      </section>
-
-      <section class="card font-card" id="fontBuilder">
-        <header class="font-header">
-          <div><p class="eyebrow">Настоящий файл шрифта</p><h2>Соберите TTF, WOFF и WOFF2</h2><p>После разметки каждая буква превращается в векторные контуры и записывается в стандартные таблицы TrueType.</p></div>
-          <span class="font-stage">Этап 3</span>
-        </header>
-        <div class="font-builder-grid">
-          <div class="font-controls">
-            <label class="font-field"><span>Название семейства</span><input id="fontFamily" type="text" value="Мой рукописный шрифт" maxlength="63"></label>
-            <label class="font-field"><span>Начертание</span><input id="fontStyle" type="text" value="Regular" maxlength="31"></label>
-            <label class="font-range"><span>Детализация контура <output id="fontDetailValue">96</output></span><input id="fontDetail" type="range" min="40" max="160" value="96"><small>Больше точек точнее повторяют ручку, но увеличивают файл.</small></label>
-            <label class="font-range"><span>Сглаживание <output id="fontSimplifyValue">0.55</output></span><input id="fontSimplify" type="range" min="0" max="2" value="0.55" step="0.05"><small>Удаляет лишние точки, сохраняя форму штриха.</small></label>
-            <label class="font-range"><span>Боковые поля <output id="fontSideBearingValue">60</output></span><input id="fontSideBearing" type="range" min="20" max="180" value="60"><small>Расстояние между соседними буквами в тексте.</small></label>
-            <label class="font-range"><span>Высота глифа <output id="fontGlyphHeightValue">700</output></span><input id="fontGlyphHeight" type="range" min="480" max="820" value="700"><small>Размер рукописного символа внутри em-квадрата 1000 единиц.</small></label>
-            <div class="font-source-stats" id="fontSourceStats"><strong>Нет разметки</strong><span>Сначала обработайте фотографию.</span></div>
-            <button class="primary-button font-build" id="fontBuild" type="button" disabled>Собрать и проверить шрифт</button>
-            <progress class="font-progress" id="fontProgress" value="0" max="6" hidden></progress>
-            <p class="font-status" id="fontStatus" data-mode="idle">Ожидание готовой разметки первого этапа.</p>
-          </div>
-
-          <div class="font-output">
-            <div class="font-preview-toolbar">
-              <label for="fontPreviewInput">Текст для проверки</label>
-              <input id="fontPreviewInput" type="text" value="Съешь же ещё этих мягких французских булок, да выпей чаю. Ёжик 0123456789">
-            </div>
-            <div class="font-preview" id="fontPreview">Съешь же ещё этих мягких французских булок, да выпей чаю. Ёжик 0123456789</div>
-            <div class="font-output-stats" id="fontOutputStats">Шрифт ещё не собран.</div>
-            <label class="font-css-label" for="fontCss">Готовый @font-face</label>
-            <textarea id="fontCss" class="font-css" rows="8" readonly placeholder="После сборки здесь появится CSS"></textarea>
-            <div class="font-downloads">
-              <button class="secondary-button" id="downloadTtf" type="button" disabled>TTF</button>
-              <button class="secondary-button" id="downloadWoff" type="button" disabled>WOFF</button>
-              <button class="secondary-button" id="downloadWoff2" type="button" disabled>WOFF2</button>
-              <button class="secondary-button" id="downloadCss" type="button" disabled>CSS</button>
-              <button class="primary-button" id="downloadFontZip" type="button" disabled>Скачать весь пакет ZIP</button>
-            </div>
-          </div>
+        <div class="template-preview-panel">
+          <div class="template-preview-toolbar"><span id="templatePageLabel">Страница 1</span><div><button class="secondary-button compact" id="templatePrevious" type="button">Назад</button><button class="secondary-button compact" id="templateNext" type="button">Дальше</button></div></div>
+          <div class="template-preview-shell"><canvas id="templatePreview" width="595" height="842"></canvas></div>
         </div>
-      </section>
-
-      <div class="card viewer-card">
-        <div class="viewer-toolbar"><div class="view-tabs" role="tablist" aria-label="Режим просмотра"><button class="tab is-active" data-view="overlay" type="button">Разметка</button><button class="tab" data-view="original" type="button">Оригинал</button><button class="tab" data-view="mask" type="button">Маска</button><button class="tab" data-view="background" type="button">Фон</button></div><div class="zoom-note">Нажмите на рамку, чтобы выбрать символ</div></div>
-        <div class="canvas-shell" id="canvasShell"><canvas id="imageCanvas" width="1200" height="720"></canvas><div class="empty-state" id="emptyState"><strong>Здесь появится фотография</strong><span>Лучший результат даёт тёмная ручка, белая бумага и расстояние между буквами.</span></div></div>
-        <div class="status-line" aria-live="polite"><span class="status-dot" id="statusDot"></span><span id="statusText">Ожидание фотографии</span></div>
       </div>
+    </section>
 
-      <div class="card results-card">
-        <div class="results-header"><div><p class="eyebrow">Результат</p><h2>Найденные символы</h2></div><div class="stats" id="stats"><span><strong>0</strong> символов</span><span><strong>0</strong> строк</span></div></div>
-        <div class="selection-toolbar"><span id="selectionInfo">Ничего не выбрано</span><div><button class="secondary-button compact" id="mergeSelected" type="button" disabled>Объединить</button><button class="secondary-button compact" id="splitSelected" type="button" disabled>Разделить</button><button class="danger-button compact" id="removeSelected" type="button" disabled>Удалить</button><button class="secondary-button compact" id="restoreDetection" type="button" disabled>Сбросить правки</button></div></div>
-        <div class="glyph-grid" id="glyphGrid"><div class="results-empty">После анализа здесь появятся отдельные буквы.</div></div>
-        <div class="export-row"><p>Экспорт сохраняет рамки, порядок, подписи и параметры обработки. Фото в JSON не включается.</p><button class="secondary-button" id="exportManifest" type="button" disabled>Скачать разметку JSON</button></div>
+    <section class="card scan-card" id="templateScanner">
+      <div class="flow-header"><div><p class="eyebrow">Шаг 2</p><h2>Загрузите все фотографии заполненных страниц</h2><p>Можно выбрать несколько файлов сразу и в любом порядке. Поворот и перспектива исправляются автоматически.</p></div><span class="stage-pill">Автосканирование</span></div>
+      <div class="scan-layout">
+        <div>
+          <label class="dropzone scan-dropzone" id="scanDropzone" for="scanFiles"><input id="scanFiles" type="file" multiple accept="image/png,image/jpeg,image/webp,image/heic,image/heif"><span class="dropzone-title">Выберите фотографии страниц</span><span class="dropzone-note">Нужен новый шаблон этапа 4. Лист должен целиком попадать в кадр.</span></label>
+          <div class="button-row"><button class="primary-button" id="scanButton" type="button" disabled>Распознать страницы</button><button class="secondary-button" id="scanClear" type="button">Очистить</button></div>
+          <progress id="scanProgress" value="0" max="1" hidden></progress>
+          <p class="stage-status" id="scanStatus" data-mode="idle">Фотографии ещё не выбраны.</p>
+          <div class="scan-report" id="scanReport"></div>
+        </div>
+        <div class="scan-pages" id="scanPages"><div class="results-empty">Здесь появятся исправленные страницы и результат проверки.</div></div>
+      </div>
+    </section>
+
+    <details class="card manual-card" id="manualMode">
+      <summary><span><strong>Ручной режим для обычной фотографии или старого шаблона</strong><small>Используйте, если машинные метки отсутствуют.</small></span></summary>
+      <div class="workspace manual-workspace">
+        <aside class="sidebar">
+          <section><h2>Фотография</h2><label class="dropzone" id="dropzone" for="fileInput"><input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif"><span class="dropzone-title">Выберите фото</span><span class="dropzone-note">PNG, JPG или WEBP</span></label><div class="file-meta" id="fileMeta">Файл ещё не выбран</div></section>
+          <section><div class="section-title-row"><h2>Очистка</h2><button class="text-button" id="resetSettings" type="button">По умолчанию</button></div>
+            <label class="control-row"><span>Отделение чернил <output id="thresholdDeltaValue">34</output></span><input id="thresholdDelta" type="range" min="8" max="90" value="34"></label>
+            <label class="control-row"><span>Максимальная яркость <output id="absoluteCapValue">195</output></span><input id="absoluteCap" type="range" min="70" max="245" value="195"></label>
+            <label class="control-row"><span>Область фона <output id="backgroundRadiusValue">34</output></span><input id="backgroundRadius" type="range" min="6" max="100" value="34"></label>
+            <label class="control-row"><span>Минимальная площадь <output id="minAreaValue">18</output></span><input id="minArea" type="range" min="3" max="300" value="18"></label>
+            <label class="control-row"><span>Объединение частей <output id="mergeStrengthValue">55</output></span><input id="mergeStrength" type="range" min="0" max="100" value="55"></label>
+            <label class="checkbox-row"><input id="closeMask" type="checkbox" checked><span>Залечивать разрывы</span></label><button class="primary-button" id="processButton" type="button" disabled>Найти буквы</button>
+          </section>
+          <section><h2>Подписи</h2><select id="charsetSelect"><option value="ru-full">Русский полный</option><option value="ru-upper">Заглавные</option><option value="ru-lower">Строчные</option><option value="custom">Свой порядок</option></select><textarea id="customCharset" rows="3" hidden></textarea><button class="secondary-button" id="assignLabels" type="button" disabled>Расставить подписи</button></section>
+        </aside>
+        <section class="main-panel">
+          <div class="viewer-card"><div class="viewer-toolbar"><div class="view-tabs"><button class="tab is-active" data-view="overlay" type="button">Разметка</button><button class="tab" data-view="original" type="button">Оригинал</button><button class="tab" data-view="mask" type="button">Маска</button><button class="tab" data-view="background" type="button">Фон</button></div></div><div class="canvas-shell" id="canvasShell"><canvas id="imageCanvas" width="1200" height="720"></canvas><div class="empty-state" id="emptyState"><strong>Здесь появится фотография</strong></div></div><div class="status-line"><span class="status-dot" id="statusDot"></span><span id="statusText">Ожидание фотографии</span></div></div>
+          <div class="results-card"><div class="results-header"><h2>Найденные символы</h2><div class="stats" id="stats"><span><strong>0</strong> символов</span></div></div><div class="selection-toolbar"><span id="selectionInfo">Ничего не выбрано</span><div><button class="secondary-button compact" id="mergeSelected" type="button" disabled>Объединить</button><button class="secondary-button compact" id="splitSelected" type="button" disabled>Разделить</button><button class="danger-button compact" id="removeSelected" type="button" disabled>Удалить</button><button class="secondary-button compact" id="restoreDetection" type="button" disabled>Сбросить</button></div></div><div class="glyph-grid" id="glyphGrid"><div class="results-empty">После анализа здесь появятся буквы.</div></div><div class="export-row"><button class="secondary-button" id="exportManifest" type="button" disabled>Скачать разметку JSON</button><button class="primary-button" id="projectFromManual" type="button" disabled>Передать в редактор</button></div></div>
+        </section>
+      </div>
+    </details>
+
+    <section class="card project-card" id="glyphEditor">
+      <div class="flow-header"><div><p class="eyebrow">Шаг 3</p><h2>Исправьте символы, метрики и кернинг</h2><p>Кисть и ластик меняют маску. Каждый символ имеет отдельные поля, ширину, масштаб и положение относительно базовой линии.</p></div><span class="stage-pill">Редактор глифов</span></div>
+      <div class="project-toolbar">
+        <label class="secondary-button file-button">Импорт проекта<input id="projectImport" type="file" accept="application/json,.dyfr.json"></label>
+        <button class="secondary-button" id="projectExport" type="button" disabled>Скачать проект</button>
+        <button class="secondary-button" id="projectRestore" type="button">Восстановить автосохранение</button>
+        <button class="danger-button" id="projectClearSaved" type="button">Удалить автосохранение</button>
+        <span id="projectAutosaveStatus">Автосохранение включено</span>
+      </div>
+      <div class="editor-layout">
+        <aside><div class="project-summary" id="projectSummary">Проект ещё не создан.</div><div class="editor-glyph-list" id="editorGlyphList"></div></aside>
+        <div class="editor-center">
+          <div class="editor-toolbar">
+            <button class="tool-button is-active" id="editorBrush" type="button">Кисть</button><button class="tool-button" id="editorEraser" type="button">Ластик</button>
+            <label>Размер <input id="editorBrushSize" type="range" min="1" max="14" value="3"><output id="editorBrushSizeValue">3</output></label>
+            <button class="secondary-button compact" id="editorUndo" type="button" disabled>Отменить</button><button class="secondary-button compact" id="editorRedo" type="button" disabled>Повторить</button>
+          </div>
+          <div class="editor-canvas-shell"><canvas id="editorCanvas" width="640" height="520"></canvas><div id="editorEmpty">Загрузите страницы или импортируйте проект.</div></div>
+          <div class="nudge-row"><button data-shift-x="-1">←</button><button data-shift-y="-1">↑</button><button data-shift-y="1">↓</button><button data-shift-x="1">→</button><button id="editorScaleDown">Уменьшить</button><button id="editorScaleUp">Увеличить</button></div>
+          <div class="baseline-preview"><canvas id="editorBaselinePreview" width="920" height="190"></canvas></div>
+        </div>
+        <aside class="inspector">
+          <label>Символ<input id="editorCharacter" maxlength="2"></label>
+          <div class="warning-box" id="editorWarnings">Символ не выбран.</div>
+          <label>Смещение X<input id="metricOffsetX" type="number" min="-400" max="400" value="0"></label>
+          <label>Смещение Y<input id="metricOffsetY" type="number" min="-400" max="400" value="0"></label>
+          <label>Масштаб<input id="metricScale" type="number" min="0.35" max="2.5" step="0.05" value="1"></label>
+          <label>Левое поле<input id="metricLeft" type="number" min="0" max="400" value="56"></label>
+          <label>Правое поле<input id="metricRight" type="number" min="0" max="400" value="56"></label>
+          <label>Фиксированная ширина<input id="metricAdvance" type="number" min="0" max="2200" value="0"><small>0 означает автоматическую ширину.</small></label>
+          <button class="secondary-button" id="editorAutoMetrics" type="button">Автометрики для всех</button>
+          <hr>
+          <h3>Кернинг</h3>
+          <div class="kerning-fields"><input id="kerningLeft" maxlength="2" placeholder="Т"><input id="kerningRight" maxlength="2" placeholder="А"><input id="kerningValue" type="number" min="-500" max="300" value="-40"></div>
+          <div class="button-row"><button class="secondary-button compact" id="kerningSet" type="button">Сохранить пару</button><button class="danger-button compact" id="kerningRemove" type="button">Удалить</button></div>
+          <button class="secondary-button" id="editorAutoKerning" type="button">Автокернинг</button>
+          <div class="kerning-list" id="kerningList"></div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="card font-card" id="fontBuilder">
+      <div class="flow-header"><div><p class="eyebrow">Шаг 4</p><h2>Соберите и проверьте готовый шрифт</h2><p>Файлы создаются в браузере. На опубликованной версии WOFF2-кодек загружается с этого же сайта.</p></div><span class="stage-pill">TTF · WOFF · WOFF2</span></div>
+      <div class="font-builder-grid">
+        <div class="font-controls">
+          <label>Название семейства<input id="fontFamily" value="Мой рукописный шрифт"></label><label>Начертание<input id="fontStyle" value="Regular"></label>
+          <label>Детализация <output id="fontDetailValue">112</output><input id="fontDetail" type="range" min="32" max="196" value="112"></label>
+          <label>Сглаживание <output id="fontSimplifyValue">0.5</output><input id="fontSimplify" type="range" min="0" max="2" step="0.05" value="0.5"></label>
+          <label>Резервное боковое поле <output id="fontSideBearingValue">60</output><input id="fontSideBearing" type="range" min="0" max="200" value="60"></label>
+          <label>Высота заглавных <output id="fontGlyphHeightValue">700</output><input id="fontGlyphHeight" type="range" min="400" max="850" value="700"></label>
+          <div id="fontSourceStats" class="font-stats">Нет проекта.</div><button class="primary-button" id="fontBuild" type="button" disabled>Собрать шрифт</button><progress id="fontProgress" value="0" max="6" hidden></progress><p id="fontStatus" class="stage-status" data-mode="idle">Ожидание проекта.</p>
+        </div>
+        <div class="font-output">
+          <label>Текст проверки<textarea id="fontPreviewInput" rows="3">Съешь же ещё этих мягких французских булок, да выпей чаю. Ёжик, цифры 0123456789.</textarea></label>
+          <div id="fontPreview" class="font-preview"></div><div id="fontOutputStats" class="font-stats">Шрифт ещё не собран.</div>
+          <div class="download-grid"><button id="downloadTtf" disabled>TTF</button><button id="downloadWoff" disabled>WOFF</button><button id="downloadWoff2" disabled>WOFF2</button><button id="downloadCss" disabled>CSS</button><button id="downloadFontZip" disabled>ZIP-пакет</button></div>
+          <label>Готовый CSS<textarea id="fontCss" rows="8" readonly></textarea></label>
+        </div>
       </div>
     </section>
   </main>
 
   <script type="module" src="template-app.js"></script>
   <script type="module" src="app.js"></script>
+  <script type="module" src="stage4-app.js"></script>
   <script type="module" src="font-app.js"></script>
 </body>
 </html>
