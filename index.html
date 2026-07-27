@@ -3,19 +3,34 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Создание русского рукописного шрифта и печатного PDF-шаблона прямо в браузере.">
+  <meta name="description" content="Создание русского рукописного шрифта в TTF, WOFF и WOFF2 прямо в браузере.">
   <title>Draw Your Font RU</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="template.css">
+  <link rel="stylesheet" href="font.css">
 </head>
 <body>
   <header class="topbar">
-    <div><p class="eyebrow">Локально · Без загрузки на сервер</p><h1>Draw Your Font RU</h1><p class="subtitle">Распечатайте русский шаблон, заполните его от руки и загрузите фотографию для разметки.</p></div>
-    <div class="stage-badge"><span>Этапы 1-2</span><strong>Шаблон и распознавание</strong></div>
+    <div>
+      <p class="eyebrow">Локально · Без загрузки фотографии на сервер</p>
+      <h1>Draw Your Font RU</h1>
+      <p class="subtitle">Распечатайте русский шаблон, заполните его, распознайте символы и скачайте настоящий устанавливаемый шрифт.</p>
+    </div>
+    <div class="stage-badge"><span>Этапы 1–3</span><strong>Шаблон, разметка и шрифт</strong></div>
   </header>
+
   <main class="workspace">
     <aside class="sidebar card">
-      <section><h2>1. Фотография</h2><label class="dropzone" id="dropzone" for="fileInput"><input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif"><span class="dropzone-title">Выберите или перетащите фото</span><span class="dropzone-note">PNG, JPG, WEBP. Изображение обрабатывается только на вашем устройстве.</span></label><div class="file-meta" id="fileMeta">Файл ещё не выбран</div></section>
+      <section>
+        <h2>1. Фотография</h2>
+        <label class="dropzone" id="dropzone" for="fileInput">
+          <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif">
+          <span class="dropzone-title">Выберите или перетащите фото</span>
+          <span class="dropzone-note">PNG, JPG, WEBP. Изображение обрабатывается только на вашем устройстве.</span>
+        </label>
+        <div class="file-meta" id="fileMeta">Файл ещё не выбран</div>
+      </section>
+
       <section>
         <div class="section-title-row"><h2>2. Очистка</h2><button class="text-button" id="resetSettings" type="button">По умолчанию</button></div>
         <label class="control-row"><span>Отделение чернил <output id="thresholdDeltaValue">34</output></span><input id="thresholdDelta" type="range" min="8" max="90" value="34"><small>Больше значение убирает слабые тени, но может съесть светлые штрихи.</small></label>
@@ -26,11 +41,27 @@
         <label class="checkbox-row"><input id="closeMask" type="checkbox" checked><span>Залечивать небольшие разрывы штрихов</span></label>
         <button class="primary-button" id="processButton" type="button" disabled>Найти буквы</button>
       </section>
-      <section><h2>3. Подписи</h2><label class="select-label" for="charsetSelect">Набор символов</label><select id="charsetSelect"><option value="ru-full">Русский: заглавные + строчные + цифры</option><option value="ru-upper">Русский: только заглавные</option><option value="ru-lower">Русский: только строчные</option><option value="custom">Свой порядок</option></select><textarea id="customCharset" rows="3" hidden aria-label="Свой порядок символов"></textarea><button class="secondary-button" id="assignLabels" type="button" disabled>Расставить подписи по порядку</button></section>
+
+      <section>
+        <h2>3. Подписи</h2>
+        <label class="select-label" for="charsetSelect">Набор символов</label>
+        <select id="charsetSelect">
+          <option value="ru-full">Русский: заглавные + строчные + цифры</option>
+          <option value="ru-upper">Русский: только заглавные</option>
+          <option value="ru-lower">Русский: только строчные</option>
+          <option value="custom">Свой порядок</option>
+        </select>
+        <textarea id="customCharset" rows="3" hidden aria-label="Свой порядок символов"></textarea>
+        <button class="secondary-button" id="assignLabels" type="button" disabled>Расставить подписи по порядку</button>
+      </section>
     </aside>
+
     <section class="main-panel">
       <section class="card template-card" id="templateBuilder">
-        <header class="template-header"><div><p class="eyebrow">Печатный шаблон</p><h2>Создайте русские листы A4</h2><p>PDF формируется прямо в браузере. Метки по углам, нумерация и направляющие подготовлены для последующей фотографии и автоматической обработки.</p></div><span class="template-stage">Этап 2</span></header>
+        <header class="template-header">
+          <div><p class="eyebrow">Печатный шаблон</p><h2>Создайте русские листы A4</h2><p>PDF формируется прямо в браузере. Метки по углам, нумерация и направляющие подготовлены для последующей фотографии.</p></div>
+          <span class="template-stage">Этап 2</span>
+        </header>
         <div class="template-builder-grid">
           <div class="template-controls">
             <label class="template-field"><span>Название шрифта</span><input id="templateTitle" type="text" value="Мой русский шрифт" maxlength="80"></label>
@@ -39,16 +70,72 @@
             <label class="template-check"><input id="templateGuides" type="checkbox" checked><span>Показывать базовую линию, высоту строчных и центр ячейки</span></label>
             <div class="template-summary" id="templateSummary">Подготовка шаблона…</div>
             <button class="primary-button template-download" id="templateDownload" type="button">Скачать PDF-шаблон</button>
-            <progress class="template-progress" id="templateProgress" value="0" max="1" hidden></progress><p class="template-status" id="templateStatus" data-mode="idle">Подготовка шаблона…</p>
+            <progress class="template-progress" id="templateProgress" value="0" max="1" hidden></progress>
+            <p class="template-status" id="templateStatus" data-mode="idle">Подготовка шаблона…</p>
           </div>
-          <div class="template-preview-panel"><div class="template-preview-toolbar"><span class="template-page-label" id="templatePageLabel">Страница 1</span><div><button class="secondary-button compact" id="templatePrevious" type="button">Назад</button><button class="secondary-button compact" id="templateNext" type="button">Дальше</button></div></div><div class="template-preview-shell"><canvas id="templatePreview" width="595" height="842"></canvas></div></div>
+          <div class="template-preview-panel">
+            <div class="template-preview-toolbar"><span class="template-page-label" id="templatePageLabel">Страница 1</span><div><button class="secondary-button compact" id="templatePrevious" type="button">Назад</button><button class="secondary-button compact" id="templateNext" type="button">Дальше</button></div></div>
+            <div class="template-preview-shell"><canvas id="templatePreview" width="595" height="842"></canvas></div>
+          </div>
         </div>
       </section>
-      <div class="card viewer-card"><div class="viewer-toolbar"><div class="view-tabs" role="tablist" aria-label="Режим просмотра"><button class="tab is-active" data-view="overlay" type="button">Разметка</button><button class="tab" data-view="original" type="button">Оригинал</button><button class="tab" data-view="mask" type="button">Маска</button><button class="tab" data-view="background" type="button">Фон</button></div><div class="zoom-note">Нажмите на рамку, чтобы выбрать символ</div></div><div class="canvas-shell" id="canvasShell"><canvas id="imageCanvas" width="1200" height="720"></canvas><div class="empty-state" id="emptyState"><strong>Здесь появится фотография</strong><span>Лучший результат даёт тёмная ручка, белая бумага и расстояние между буквами.</span></div></div><div class="status-line" aria-live="polite"><span class="status-dot" id="statusDot"></span><span id="statusText">Ожидание фотографии</span></div></div>
-      <div class="card results-card"><div class="results-header"><div><p class="eyebrow">Результат</p><h2>Найденные символы</h2></div><div class="stats" id="stats"><span><strong>0</strong> символов</span><span><strong>0</strong> строк</span></div></div><div class="selection-toolbar"><span id="selectionInfo">Ничего не выбрано</span><div><button class="secondary-button compact" id="mergeSelected" type="button" disabled>Объединить</button><button class="secondary-button compact" id="splitSelected" type="button" disabled>Разделить</button><button class="danger-button compact" id="removeSelected" type="button" disabled>Удалить</button><button class="secondary-button compact" id="restoreDetection" type="button" disabled>Сбросить правки</button></div></div><div class="glyph-grid" id="glyphGrid"><div class="results-empty">После анализа здесь появятся отдельные буквы.</div></div><div class="export-row"><p>Экспорт сохраняет рамки, порядок, подписи и параметры обработки. Фото в JSON не включается.</p><button class="secondary-button" id="exportManifest" type="button" disabled>Скачать разметку JSON</button></div></div>
+
+      <section class="card font-card" id="fontBuilder">
+        <header class="font-header">
+          <div><p class="eyebrow">Настоящий файл шрифта</p><h2>Соберите TTF, WOFF и WOFF2</h2><p>После разметки каждая буква превращается в векторные контуры и записывается в стандартные таблицы TrueType.</p></div>
+          <span class="font-stage">Этап 3</span>
+        </header>
+        <div class="font-builder-grid">
+          <div class="font-controls">
+            <label class="font-field"><span>Название семейства</span><input id="fontFamily" type="text" value="Мой рукописный шрифт" maxlength="63"></label>
+            <label class="font-field"><span>Начертание</span><input id="fontStyle" type="text" value="Regular" maxlength="31"></label>
+            <label class="font-range"><span>Детализация контура <output id="fontDetailValue">96</output></span><input id="fontDetail" type="range" min="40" max="160" value="96"><small>Больше точек точнее повторяют ручку, но увеличивают файл.</small></label>
+            <label class="font-range"><span>Сглаживание <output id="fontSimplifyValue">0.55</output></span><input id="fontSimplify" type="range" min="0" max="2" value="0.55" step="0.05"><small>Удаляет лишние точки, сохраняя форму штриха.</small></label>
+            <label class="font-range"><span>Боковые поля <output id="fontSideBearingValue">60</output></span><input id="fontSideBearing" type="range" min="20" max="180" value="60"><small>Расстояние между соседними буквами в тексте.</small></label>
+            <label class="font-range"><span>Высота глифа <output id="fontGlyphHeightValue">700</output></span><input id="fontGlyphHeight" type="range" min="480" max="820" value="700"><small>Размер рукописного символа внутри em-квадрата 1000 единиц.</small></label>
+            <div class="font-source-stats" id="fontSourceStats"><strong>Нет разметки</strong><span>Сначала обработайте фотографию.</span></div>
+            <button class="primary-button font-build" id="fontBuild" type="button" disabled>Собрать и проверить шрифт</button>
+            <progress class="font-progress" id="fontProgress" value="0" max="6" hidden></progress>
+            <p class="font-status" id="fontStatus" data-mode="idle">Ожидание готовой разметки первого этапа.</p>
+          </div>
+
+          <div class="font-output">
+            <div class="font-preview-toolbar">
+              <label for="fontPreviewInput">Текст для проверки</label>
+              <input id="fontPreviewInput" type="text" value="Съешь же ещё этих мягких французских булок, да выпей чаю. Ёжик 0123456789">
+            </div>
+            <div class="font-preview" id="fontPreview">Съешь же ещё этих мягких французских булок, да выпей чаю. Ёжик 0123456789</div>
+            <div class="font-output-stats" id="fontOutputStats">Шрифт ещё не собран.</div>
+            <label class="font-css-label" for="fontCss">Готовый @font-face</label>
+            <textarea id="fontCss" class="font-css" rows="8" readonly placeholder="После сборки здесь появится CSS"></textarea>
+            <div class="font-downloads">
+              <button class="secondary-button" id="downloadTtf" type="button" disabled>TTF</button>
+              <button class="secondary-button" id="downloadWoff" type="button" disabled>WOFF</button>
+              <button class="secondary-button" id="downloadWoff2" type="button" disabled>WOFF2</button>
+              <button class="secondary-button" id="downloadCss" type="button" disabled>CSS</button>
+              <button class="primary-button" id="downloadFontZip" type="button" disabled>Скачать весь пакет ZIP</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="card viewer-card">
+        <div class="viewer-toolbar"><div class="view-tabs" role="tablist" aria-label="Режим просмотра"><button class="tab is-active" data-view="overlay" type="button">Разметка</button><button class="tab" data-view="original" type="button">Оригинал</button><button class="tab" data-view="mask" type="button">Маска</button><button class="tab" data-view="background" type="button">Фон</button></div><div class="zoom-note">Нажмите на рамку, чтобы выбрать символ</div></div>
+        <div class="canvas-shell" id="canvasShell"><canvas id="imageCanvas" width="1200" height="720"></canvas><div class="empty-state" id="emptyState"><strong>Здесь появится фотография</strong><span>Лучший результат даёт тёмная ручка, белая бумага и расстояние между буквами.</span></div></div>
+        <div class="status-line" aria-live="polite"><span class="status-dot" id="statusDot"></span><span id="statusText">Ожидание фотографии</span></div>
+      </div>
+
+      <div class="card results-card">
+        <div class="results-header"><div><p class="eyebrow">Результат</p><h2>Найденные символы</h2></div><div class="stats" id="stats"><span><strong>0</strong> символов</span><span><strong>0</strong> строк</span></div></div>
+        <div class="selection-toolbar"><span id="selectionInfo">Ничего не выбрано</span><div><button class="secondary-button compact" id="mergeSelected" type="button" disabled>Объединить</button><button class="secondary-button compact" id="splitSelected" type="button" disabled>Разделить</button><button class="danger-button compact" id="removeSelected" type="button" disabled>Удалить</button><button class="secondary-button compact" id="restoreDetection" type="button" disabled>Сбросить правки</button></div></div>
+        <div class="glyph-grid" id="glyphGrid"><div class="results-empty">После анализа здесь появятся отдельные буквы.</div></div>
+        <div class="export-row"><p>Экспорт сохраняет рамки, порядок, подписи и параметры обработки. Фото в JSON не включается.</p><button class="secondary-button" id="exportManifest" type="button" disabled>Скачать разметку JSON</button></div>
+      </div>
     </section>
   </main>
+
   <script type="module" src="template-app.js"></script>
   <script type="module" src="app.js"></script>
+  <script type="module" src="font-app.js"></script>
 </body>
 </html>
