@@ -9,6 +9,8 @@ const targets = [
   ['source-parts/font-app.js', 'font-app.js'],
   ['source-parts/stage4-app.js', 'stage4-app.js'],
   ['source-parts/font-builder.js', 'src/font-builder.js'],
+  ['source-parts/cursive-font.js', 'src/cursive-font.js'],
+  ['source-parts/cursive-app.js', 'cursive-app.js'],
 ];
 
 for (const [partsDirectory, outputPath] of targets) {
@@ -18,7 +20,7 @@ for (const [partsDirectory, outputPath] of targets) {
   const encoded = (await Promise.all(parts.map((name) => readFile(resolve(directory, name), 'utf8')))).join('').replace(/\s+/g, '');
   let source = gunzipSync(Buffer.from(encoded, 'base64'));
   if (outputPath === 'stage4-app.js') {
-    source = Buffer.concat([source, Buffer.from("\nimport './stage4-recovery-app.js';\n", 'utf8')]);
+    source = Buffer.concat([source, Buffer.from("\nimport './stage4-recovery-app.js';\nimport './cursive-app.js';\n", 'utf8')]);
   }
   await writeFile(resolve(root, outputPath), source);
   console.log(`Assembled ${outputPath} (${source.length} bytes).`);
