@@ -29,6 +29,11 @@ test('guided workflow, collapsed cursive stage and wrapped preview work', async 
   await expect(manual).toBeVisible();
   await expect(manual).toHaveJSProperty('open', true);
 
+  await templateChoice.click();
+  await expect(template).toBeVisible();
+  await expect(scanner).toBeVisible();
+  await expect(manual).toBeHidden();
+
   await page.evaluate(async () => {
     const projectModule = await import('/src/project.js');
     const makeGlyph = (char, index) => {
