@@ -18,7 +18,7 @@
     "fonteditor-core": "2.6.3"
   },
   "devDependencies": {
-    "@playwright/test": "1.62.0",
+    "@playwright/test": "1.61.1",
     "esbuild": "0.28.1"
   }
 }
