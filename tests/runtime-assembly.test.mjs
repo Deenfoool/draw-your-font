@@ -9,7 +9,7 @@ assert.match(assembly, /src\/cursive-font-core\.js/);
 assert.match(assembly, /src\/cursive-font-v3\.js/);
 assert.match(assembly, /src\/cursive-font\.js/);
 assert.match(assembly, /cursive-app\.js/);
-assert.match(assembly, /data-dyfr-cursive/);
+assert.match(assembly, /dataset\.dyfrCursive/);
 assert.match(assembly, /Duplicate source part number/);
 assert.match(assembly, /Missing or unordered source part/);
 assert.match(assembly, /startNumber !== 0 && startNumber !== 1/);
