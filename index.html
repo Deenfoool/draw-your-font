@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Draw Your Font RU</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+<h1>Draw Your Font RU</h1>
+<p>Создание шрифта из рукописного алфавита прямо в браузере</p>
+<input id="file" type="file" accept="image/*">
+<canvas id="canvas"></canvas>
+<div class="panel">
+<button id="process">Найти буквы</button>
+<button id="download">Скачать проект</button>
+</div>
+<pre id="log">Ожидание изображения...</pre>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
