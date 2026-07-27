@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import {
   buildCursiveTrueTypeFont,
   ensureCursiveProject,
@@ -88,6 +88,12 @@ assert.equal(built.layout.forms.м.init > built.layout.forms.м.isol, true);
 assert.equal(built.layout.forms.м.medi > built.layout.forms.м.init, true);
 assert.equal(built.layout.forms.м.fina > built.layout.forms.м.medi, true);
 
+const interfaceSource = await readFile('cursive-app.js', 'utf8');
+assert.match(interfaceSource, /function invalidateConnectedOutputs/);
+assert.match(interfaceSource, /fontFeatureSettings = '"rlig" 1, "calt" 1, "curs" 1'/);
+assert.match(interfaceSource, /GPOS: curs/);
+assert.match(interfaceSource, /fontFamily','fontStyle','fontDetail','fontSimplify','fontSideBearing','fontGlyphHeight/);
+
 await writeFile('tests/.cursive-fixture.ttf', built.ttf);
 await writeFile('tests/.cursive-layout.json', JSON.stringify(built.layout, null, 2));
-console.log(`All 19 cursive tests passed. TTF ${built.ttf.length} bytes, ${built.glyphs.length} glyphs.`);
+console.log(`All 23 cursive tests passed. TTF ${built.ttf.length} bytes, ${built.glyphs.length} glyphs.`);
