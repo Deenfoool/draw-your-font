@@ -4,6 +4,7 @@ import { MARKER_GRID, METADATA_MM, markerPattern, metadataMatrix, encodeTemplate
 import { computeHomography, transformPoint, warpGrayscale, scanTemplatePage, summarizeScannedPages } from '../src/template-scanner.js';
 import { autoKerning, autoMetrics, deserializeProject, projectFromScannedSummary, projectToFontSource, serializeProject, validateProject } from '../src/project.js';
 import { buildTrueTypeFont, createGlyphSet, parseSfntTables, validateTrueType } from '../src/font-builder.js';
+import { getWoff2DependencyInfo } from '../src/woff2-loader.js';
 
 function fill(gray, width, x0, y0, x1, y1, value = 0) {
   for (let y = Math.max(0, Math.floor(y0)); y < Math.min(gray.length / width, Math.ceil(y1)); y += 1) {
@@ -35,6 +36,14 @@ function renderSyntheticPage(plan, pageIndex, width = 1050) {
     }
   }
   return { gray, width, height };
+}
+
+{
+  const info = getWoff2DependencyInfo();
+  assert.match(info.localModuleUrl, /\/vendor\/woff2-codec\.mjs$/);
+  assert.match(info.localWasmUrl, /\/vendor\/woff2\.wasm$/);
+  assert.doesNotMatch(info.localModuleUrl, /\/src\/vendor\//);
+  assert.doesNotMatch(info.localWasmUrl, /\/src\/vendor\//);
 }
 
 {
@@ -110,4 +119,4 @@ let scan;
   assert.ok(parseSfntTables(ttf).tables.some((table) => table.tag === 'kern'));
 }
 
-console.log('All 5 stage 4 tests passed.');
+console.log('All 6 stage 4 tests passed.');
