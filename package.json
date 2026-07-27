@@ -1,11 +1,12 @@
 {
   "name": "draw-your-font-ru-browser",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node tests/segmentation.test.mjs && node tests/template.test.mjs",
-    "test:browser": "python tests/run_browser_smoke.py",
-    "test:all": "npm test && npm run test:browser"
+    "test": "node tests/segmentation.test.mjs && node tests/template.test.mjs && node tests/font-builder.test.mjs",
+    "test:fonttools": "python tests/validate_generated_font.py",
+    "test:browser": "python tests/run_browser_smoke.py && python tests/run_font_ui.py",
+    "test:all": "npm test && npm run test:fonttools && npm run test:browser"
   }
 }
