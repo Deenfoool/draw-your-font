@@ -31,9 +31,11 @@ jobs:
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
       - name: Install independent validators
-        run: python -m pip install --disable-pip-version-check fonttools brotli websocket-client
+        run: python -m pip install --disable-pip-version-check fonttools brotli websocket-client uharfbuzz
       - name: Build autonomous browser runtimes
         run: npm run build:runtime
+      - name: Verify connected source assembly
+        run: node --check src/cursive-font.js && node --check cursive-app.js && test -s cursive.css
       - name: Run deterministic and Chromium tests
         run: npm run test:all
       - name: Verify generated runtime files
