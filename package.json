@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build:runtime": "node scripts/build-runtime.mjs",
-    "test": "node tests/runtime-assembly.test.mjs && node tests/segmentation.test.mjs && node tests/template.test.mjs && node tests/font-builder.test.mjs && node tests/stage4.test.mjs && node tests/scan-recovery.test.mjs && node tests/cursive.test.mjs",
+    "test": "node tests/runtime-assembly.test.mjs && node tests/segmentation.test.mjs && node tests/template.test.mjs && node tests/font-builder.test.mjs && node tests/stage4.test.mjs && node tests/scan-recovery.test.mjs && node tests/cursive.test.mjs && node tests/cursive-anchor-safety.test.mjs",
     "test:fonttools": "python tests/validate_generated_font.py && python tests/validate_cursive_font.py",
     "test:browser": "python tests/run_browser_smoke.py && python tests/run_template_ui.py && python tests/run_font_ui.py && python tests/run_stage4_ui.py && python tests/run_cursive_ui.py",
     "test:cross-browser": "playwright test",
