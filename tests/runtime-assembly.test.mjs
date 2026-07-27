@@ -13,7 +13,7 @@ assert.match(assembly, /Duplicate source part number/);
 assert.match(assembly, /Missing or unordered source part/);
 
 const expected = new Map([
-  ['src/cursive-font.js', '7c6bcf6867b11d6bd4fdc038daf47715c671bdbb3b1a5414682c77111de716b4'],
+  ['src/cursive-font.js', 'ff3399cf31d9bfb41951b5bb289bcb773b646197de3c47ad7ee98cfcc77a7e7b'],
   ['cursive-app.js', '1f39268d2eaa053d57227380a703089ead7b63098c109276edc7298ecce62968'],
 ]);
 for (const [file, digest] of expected) {
