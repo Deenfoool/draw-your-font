@@ -16,7 +16,10 @@ for (const [partsDirectory, outputPath] of targets) {
   const parts = (await readdir(directory)).filter((name) => /^(?:\d+)(?:\.gz\.b64|\.txt)$/.test(name)).sort();
   if (!parts.length) throw new Error(`No source parts found in ${partsDirectory}`);
   const encoded = (await Promise.all(parts.map((name) => readFile(resolve(directory, name), 'utf8')))).join('').replace(/\s+/g, '');
-  const source = gunzipSync(Buffer.from(encoded, 'base64'));
+  let source = gunzipSync(Buffer.from(encoded, 'base64'));
+  if (outputPath === 'stage4-app.js') {
+    source = Buffer.concat([source, Buffer.from("\nimport './stage4-recovery-app.js';\n", 'utf8')]);
+  }
   await writeFile(resolve(root, outputPath), source);
   console.log(`Assembled ${outputPath} (${source.length} bytes).`);
 }
