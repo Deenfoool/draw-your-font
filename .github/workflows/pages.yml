@@ -3,6 +3,8 @@ name: Test and deploy GitHub Pages
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -11,7 +13,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -64,6 +66,7 @@ jobs:
         run: npm run test:cross-browser
 
   deploy:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     needs: [deterministic-tests, cross-browser-tests]
     runs-on: ubuntu-latest
     environment:
