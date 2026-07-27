@@ -103,18 +103,20 @@ with tempfile.TemporaryDirectory(prefix='dyfr-cursive-ui-') as temp:
               if(status.dataset.mode!=='ok') throw new Error(status.textContent);
               const state=window.__drawYourFontCursive.getState();
               if(!state.outputs?.ttf || !state.outputs?.woff2) throw new Error('Connected outputs missing');
-              if(!state.outputs.built.tables.includes('GSUB')) throw new Error('GSUB missing');
+              if(!state.outputs.built.tables.includes('GSUB') || !state.outputs.built.tables.includes('GPOS')) throw new Error('GSUB or GPOS missing');
               const signature=String.fromCharCode(...state.outputs.ttf.slice(0,4));
               const woff2=String.fromCharCode(...state.outputs.woff2.slice(0,4));
               const preview=document.querySelector('#fontPreview');
-              return {forms:simulated,ttf:state.outputs.ttf.length,woff2:state.outputs.woff2.length,signature,woff2Signature:woff2,featureSettings:preview.style.fontFeatureSettings,canvasCount:document.querySelectorAll('#cursiveForms canvas').length,status:status.textContent};
+              return {forms:simulated,ttf:state.outputs.ttf.length,woff2:state.outputs.woff2.length,signature,woff2Signature:woff2,featureSettings:preview.style.fontFeatureSettings,canvasCount:document.querySelectorAll('#cursiveForms canvas').length,status:status.textContent,tables:state.outputs.built.tables};
             })()''')
             if result['forms'] != ['init', 'medi', 'medi', 'fina']:
                 raise RuntimeError(f'Wrong forms: {result}')
             if result['signature'] != '\x00\x01\x00\x00' or result['woff2Signature'] != 'wOF2':
                 raise RuntimeError(f'Wrong font signatures: {result}')
-            if result['canvasCount'] != 4 or 'calt' not in result['featureSettings']:
+            if result['canvasCount'] != 4 or 'calt' not in result['featureSettings'] or 'curs' not in result['featureSettings']:
                 raise RuntimeError(f'Cursive UI incomplete: {result}')
+            if 'GSUB' not in result['tables'] or 'GPOS' not in result['tables']:
+                raise RuntimeError(f'OpenType tables missing: {result}')
             print(json.dumps(result, ensure_ascii=False, indent=2))
         finally:
             ws.close()
