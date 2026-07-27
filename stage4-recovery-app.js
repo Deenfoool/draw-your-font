@@ -9,21 +9,21 @@ import {
 } from './src/project.js';
 import { summarizeScannedPages } from './src/template-scanner.js';
 
-const state = {
+const recoveryState = {
   scans: [],
   failures: [],
   installing: false,
 };
 
-function byId(id) { return document.getElementById(id); }
-function setStatus(text, mode = 'busy') {
-  const node = byId('scanStatus');
+function recoveryById(id) { return document.getElementById(id); }
+function recoverySetStatus(text, mode = 'busy') {
+  const node = recoveryById('scanStatus');
   if (!node) return;
   node.textContent = text;
   node.dataset.mode = mode;
 }
 
-function grayToCanvas(gray, width, height, maxWidth = 760) {
+function recoveryGrayToCanvas(gray, width, height, maxWidth = 760) {
   const source = document.createElement('canvas');
   source.width = width;
   source.height = height;
@@ -43,8 +43,8 @@ function grayToCanvas(gray, width, height, maxWidth = 760) {
   return canvas;
 }
 
-function renderResults(results, failures) {
-  const container = byId('scanPages');
+function recoveryRenderResults(results, failures) {
+  const container = recoveryById('scanPages');
   if (!container) return;
   container.replaceChildren();
   for (const result of results) {
@@ -52,7 +52,7 @@ function renderResults(results, failures) {
     card.className = 'scan-page-card';
     const heading = document.createElement('strong');
     heading.textContent = `Страница ${result.metadata.pageIndex + 1}${result.recovery?.manualCorners ? ' · углы исправлены вручную' : ''}`;
-    const canvas = grayToCanvas(result.rectified.gray, result.rectified.width, result.rectified.height, 520);
+    const canvas = recoveryGrayToCanvas(result.rectified.gray, result.rectified.width, result.rectified.height, 520);
     const note = document.createElement('small');
     const warnings = result.glyphs.filter((glyph) => glyph.quality.warnings.length).length;
     note.textContent = `${result.glyphs.length} ячеек · предупреждений: ${warnings}`;
@@ -62,17 +62,17 @@ function renderResults(results, failures) {
   for (const failure of failures) {
     const card = document.createElement('article');
     card.className = 'scan-page-card scan-page-error';
-    const title = document.createElement('strong');
-    title.textContent = failure.file;
-    const message = document.createElement('small');
-    message.textContent = failure.error;
-    card.append(title, message);
+    const heading = document.createElement('strong');
+    heading.textContent = failure.file;
+    const note = document.createElement('small');
+    note.textContent = failure.error;
+    card.append(heading, note);
     container.append(card);
   }
 }
 
-function renderReport(summary, failures) {
-  const report = byId('scanReport');
+function recoveryRenderReport(summary, failures) {
+  const report = recoveryById('scanReport');
   if (!report) return;
   const parts = [];
   if (summary.missing.length) parts.push(`Не хватает страниц: ${summary.missing.join(', ')}.`);
@@ -84,9 +84,9 @@ function renderReport(summary, failures) {
   report.textContent = parts.join(' ');
 }
 
-function createManualCornerDialog(decoded, file, activePlan) {
+function recoveryManualCornerDialog(decoded, file, activePlan) {
   return new Promise((resolve, reject) => {
-    const host = byId('scanPages');
+    const host = recoveryById('scanPages');
     if (!host) return reject(new Error('Панель ручной коррекции не найдена.'));
     host.replaceChildren();
     const panel = document.createElement('section');
@@ -94,9 +94,9 @@ function createManualCornerDialog(decoded, file, activePlan) {
     const title = document.createElement('h3');
     title.textContent = `Укажите четыре угла листа: ${file.name}`;
     const help = document.createElement('p');
-    help.textContent = 'Перетащите точки на внешние углы бумаги. Программа попробует все четыре поворота. Если машинный код размыт, выберите номер страницы и поворот вручную.';
+    help.textContent = 'Перетащите точки на внешние углы бумаги. Программа сама попробует все четыре поворота. Если машинный код размыт, выберите номер страницы и поворот вручную.';
 
-    const display = grayToCanvas(decoded.gray, decoded.width, decoded.height, 900);
+    const display = recoveryGrayToCanvas(decoded.gray, decoded.width, decoded.height, 900);
     display.className = 'manual-corner-canvas';
     const context = display.getContext('2d');
     const base = document.createElement('canvas');
@@ -214,30 +214,31 @@ function createManualCornerDialog(decoded, file, activePlan) {
 }
 
 async function processScanFilesRobust() {
-  const input = byId('scanFiles');
+  const input = recoveryById('scanFiles');
   const files = [...(input?.files || [])];
   if (!files.length) {
-    setStatus('Сначала выберите фотографии.', 'error');
+    recoverySetStatus('Сначала выберите фотографии.', 'error');
     return null;
   }
   const api = window.__drawYourFontProject;
   const activePlan = window.__drawYourFontTemplate?.getState?.().plan || null;
-  const progress = byId('scanProgress');
+  const progress = recoveryById('scanProgress');
   if (progress) { progress.hidden = false; progress.max = files.length; progress.value = 0; }
   const results = [];
   const failures = [];
+
   for (let index = 0; index < files.length; index += 1) {
     const file = files[index];
-    setStatus(`Открываю ${index + 1}/${files.length}: ${file.name}…`, 'busy');
+    recoverySetStatus(`Открываю ${index + 1}/${files.length}: ${file.name}…`, 'busy');
     try {
       const decoded = await decodeFileToGray(file);
       let result;
       try {
-        setStatus(`Ищу метки ${index + 1}/${files.length}: ${file.name}…`, 'busy');
+        recoverySetStatus(`Ищу метки ${index + 1}/${files.length}: ${file.name}…`, 'busy');
         result = scanTemplateWithRetries(decoded.gray, decoded.width, decoded.height, { activePlan });
       } catch (automaticError) {
-        setStatus(`Метки на «${file.name}» не распознаны. Укажите углы листа вручную.`, 'busy');
-        result = await createManualCornerDialog(decoded, file, activePlan);
+        recoverySetStatus(`Метки на «${file.name}» не распознаны. Укажите углы листа вручную.`, 'busy');
+        result = await recoveryManualCornerDialog(decoded, file, activePlan);
         result.recovery = { ...(result.recovery || {}), automaticError: automaticError.message };
       }
       result.fileName = file.name;
@@ -249,14 +250,16 @@ async function processScanFilesRobust() {
     }
     if (progress) progress.value = index + 1;
   }
-  state.scans = results;
-  state.failures = failures;
+
+  recoveryState.scans = results;
+  recoveryState.failures = failures;
   if (!results.length) {
-    renderResults([], failures);
-    setStatus('Ни одна фотография не обработана. Проверьте сообщения ниже.', 'error');
+    recoveryRenderResults([], failures);
+    recoverySetStatus('Ни одна фотография не обработана. Проверьте сообщения ниже.', 'error');
     if (progress) progress.hidden = true;
     return null;
   }
+
   const plan = results[0].plan || activePlan;
   const summary = summarizeScannedPages(results, plan);
   const project = projectFromScannedSummary(summary, {
@@ -266,24 +269,24 @@ async function processScanFilesRobust() {
     template: plan ? { charsetId: plan.charsetId, layoutId: plan.layout.id, pageCount: plan.pageCount } : null,
   });
   api.importProject(serializeProject(project));
-  renderResults(results, failures);
-  renderReport(summary, failures);
-  setStatus(`Готово: ${results.length} страниц, ${project.glyphs.length} символов.${failures.length ? ` Ошибок файлов: ${failures.length}.` : ''}`, failures.length ? 'busy' : 'ok');
+  recoveryRenderResults(results, failures);
+  recoveryRenderReport(summary, failures);
+  recoverySetStatus(`Готово: ${results.length} страниц, ${project.glyphs.length} символов.${failures.length ? ` Ошибок файлов: ${failures.length}.` : ''}`, failures.length ? 'busy' : 'ok');
   if (progress) progress.hidden = true;
   window.dispatchEvent(new CustomEvent('drawyourfont:project-updated', { detail: { glyphCount: project.glyphs.length, recovery: true } }));
   return project;
 }
 
 function installRecovery() {
-  if (state.installing) return;
+  if (recoveryState.installing) return;
   const api = window.__drawYourFontProject;
-  const oldButton = byId('scanButton');
-  const input = byId('scanFiles');
+  const oldButton = recoveryById('scanButton');
+  const input = recoveryById('scanFiles');
   if (!api || !oldButton || !input) {
     setTimeout(installRecovery, 30);
     return;
   }
-  state.installing = true;
+  recoveryState.installing = true;
   const button = oldButton.cloneNode(true);
   oldButton.replaceWith(button);
   button.disabled = !input.files?.length;
@@ -292,10 +295,10 @@ function installRecovery() {
   const originalGetState = api.getState?.bind(api);
   api.processScanFilesLegacy = api.processScanFiles;
   api.processScanFiles = processScanFilesRobust;
-  if (originalGetState) api.getState = () => ({ ...originalGetState(), scans: [...state.scans], recoveryFailures: [...state.failures], project: api.getProject?.() || originalGetState().project });
-  byId('scanClear')?.addEventListener('click', () => {
-    state.scans = [];
-    state.failures = [];
+  if (originalGetState) api.getState = () => ({ ...originalGetState(), scans: [...recoveryState.scans], recoveryFailures: [...recoveryState.failures], project: api.getProject?.() || originalGetState().project });
+  recoveryById('scanClear')?.addEventListener('click', () => {
+    recoveryState.scans = [];
+    recoveryState.failures = [];
     setTimeout(() => { button.disabled = !input.files?.length; }, 0);
   });
 }
