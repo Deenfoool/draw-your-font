@@ -10,28 +10,54 @@ const targets = [
   ['source-parts/font-app.js', 'font-app.js'],
   ['source-parts/stage4-app.js', 'stage4-app.js'],
   ['source-parts/font-builder.js', 'src/font-builder.js'],
-  ['source-parts/cursive-font-v2.js', 'src/cursive-font.js'],
-  ['source-parts/cursive-app-v4.js', 'cursive-app.js'],
 ];
-const expectedSha256 = new Map([
-  ['src/cursive-font.js', '3f06335a69cc08cab9bec6c4f50925c9b6ff70c9b7fbd88bb4a5600ebf86b857'],
-  ['cursive-app.js', 'cdaaed4ef1b4b850a60a93b8fa5fd465c8aa00465c26c030db4e7a4811352da3'],
+const directSources = new Map([
+  ['src/cursive-font.js', '7c6bcf6867b11d6bd4fdc038daf47715c671bdbb3b1a5414682c77111de716b4'],
+  ['cursive-app.js', '1f39268d2eaa053d57227380a703089ead7b63098c109276edc7298ecce62968'],
 ]);
+
+function partNumber(name) {
+  const match = /^(\d+)(?:\.gz\.b64|\.txt)$/.exec(name);
+  return match ? Number(match[1]) : null;
+}
 
 for (const [partsDirectory, outputPath] of targets) {
   const directory = resolve(root, partsDirectory);
-  const parts = (await readdir(directory)).filter((name) => /^(?:\d+)(?:\.gz\.b64|\.txt)$/.test(name)).sort();
+  const parts = (await readdir(directory))
+    .map((name) => ({ name, number: partNumber(name) }))
+    .filter((part) => Number.isInteger(part.number))
+    .sort((left, right) => left.number - right.number || left.name.localeCompare(right.name));
+
   if (!parts.length) throw new Error(`No source parts found in ${partsDirectory}`);
-  const encoded = (await Promise.all(parts.map((name) => readFile(resolve(directory, name), 'utf8')))).join('').replace(/\s+/g, '');
-  let source = gunzipSync(Buffer.from(encoded, 'base64'));
+  const numbers = parts.map((part) => part.number);
+  const unique = new Set(numbers);
+  if (unique.size !== numbers.length) throw new Error(`Duplicate source part number in ${partsDirectory}: ${numbers.join(', ')}`);
+  for (let index = 0; index < numbers.length; index += 1) {
+    if (numbers[index] !== index + 1) throw new Error(`Missing or unordered source part in ${partsDirectory}: expected ${index + 1}, got ${numbers[index]}`);
+  }
+
+  const chunks = await Promise.all(parts.map(({ name }) => readFile(resolve(directory, name), 'utf8')));
+  const encoded = chunks.join('').replace(/\s+/g, '');
+  if (!encoded || encoded.length % 4 === 1 || /[^A-Za-z0-9+/=]/.test(encoded)) {
+    throw new Error(`Invalid base64 source stream in ${partsDirectory}`);
+  }
+
+  let source;
+  try {
+    source = gunzipSync(Buffer.from(encoded, 'base64'));
+  } catch (error) {
+    throw new Error(`Cannot assemble ${outputPath} from ${partsDirectory}: ${error.message}`, { cause: error });
+  }
   if (outputPath === 'stage4-app.js') {
     source = Buffer.concat([source, Buffer.from("\nimport './stage4-recovery-app.js';\nimport './cursive-app.js';\n", 'utf8')]);
   }
-  const expected = expectedSha256.get(outputPath);
-  if (expected) {
-    const actual = createHash('sha256').update(source).digest('hex');
-    if (actual !== expected) throw new Error(`SHA-256 mismatch for ${outputPath}: ${actual}`);
-  }
   await writeFile(resolve(root, outputPath), source);
-  console.log(`Assembled ${outputPath} (${source.length} bytes).`);
+  console.log(`Assembled ${outputPath} (${source.length} bytes, ${parts.length} verified parts).`);
+}
+
+for (const [relativePath, expected] of directSources) {
+  const source = await readFile(resolve(root, relativePath));
+  const actual = createHash('sha256').update(source).digest('hex');
+  if (actual !== expected) throw new Error(`SHA-256 mismatch for ${relativePath}: ${actual}`);
+  console.log(`Verified ${relativePath} (${source.length} bytes).`);
 }
