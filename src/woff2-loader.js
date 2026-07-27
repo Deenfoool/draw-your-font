@@ -1,5 +1,5 @@
-const LOCAL_MODULE_URL = './vendor/woff2-codec.mjs';
-const LOCAL_WASM_URL = './vendor/woff2.wasm';
+const LOCAL_MODULE_URL = new URL('../vendor/woff2-codec.mjs', import.meta.url).href;
+const LOCAL_WASM_URL = new URL('../vendor/woff2.wasm', import.meta.url).href;
 let modulePromise = null;
 let initPromise = null;
 let selectedSource = null;
