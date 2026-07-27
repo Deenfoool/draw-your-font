@@ -91,17 +91,18 @@ assert.deepEqual(simulateCursiveForms('дрожь', project).map(({ form }) => f
 assert.deepEqual(simulateCursiveForms('а', project).map(({ form }) => form), ['isol']);
 assert.deepEqual(simulateCursiveForms('ма ма', project).map(({ form }) => form), ['init', 'fina', 'isol', 'init', 'fina']);
 
-cursive.glyphs.т.joinRight = false;
+ensureCursiveProject(project).glyphs.т.joinRight = false;
 assert.deepEqual(simulateCursiveForms('тата', project).map(({ form }) => form), ['isol', 'init', 'fina', 'isol']);
-cursive.glyphs.т.joinRight = true;
+ensureCursiveProject(project).glyphs.т.joinRight = true;
 
-cursive.enabled = true;
-cursive.glyphs.м.entry = { x: 0.17, y: 0.72 };
-cursive.glyphs.м.forms.medi.offsetX = 3;
-cursive.glyphs.р.baselineY = 0.75;
-cursive.glyphs.р.descenderScale = 1.25;
+const liveCursive = ensureCursiveProject(project);
+liveCursive.enabled = true;
+liveCursive.glyphs.м.entry = { x: 0.17, y: 0.72 };
+liveCursive.glyphs.м.forms.medi.offsetX = 3;
+liveCursive.glyphs.р.baselineY = 0.75;
+liveCursive.glyphs.р.descenderScale = 1.25;
 applyRussianDescenderPreset(project);
-cursive.glyphs.р.descenderScale = 1.25;
+ensureCursiveProject(project).glyphs.р.descenderScale = 1.25;
 const restored = deserializeProject(serializeProject(project));
 assert.equal(restored.cursive.enabled, true);
 assert.deepEqual(restored.cursive.glyphs.м.entry, { x: 0.17, y: 0.72 });
@@ -139,7 +140,7 @@ assert.match(interfaceSource, /cursiveBaseline/);
 assert.match(interfaceSource, /applyRussianDescenderPreset/);
 assert.match(interfaceSource, /py - generated\.baselineY/);
 assert.match(interfaceSource, /дрожь · друг · щука · цифра/);
-assert.match(interfaceSource, /fontFeatureSettings = '\"rlig\" 1, \"calt\" 1, \"curs\" 1'/);
+assert.match(interfaceSource, /fontFeatureSettings = '"rlig" 1, "calt" 1, "curs" 1'/);
 
 await writeFile('tests/.cursive-fixture.ttf', built.ttf);
 await writeFile('tests/.cursive-layout.json', JSON.stringify(built.layout, null, 2));
