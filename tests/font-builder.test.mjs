@@ -19,8 +19,9 @@ function makeSource() {
   const rect = (x0, y0, x1, y1) => {
     for (let y = y0; y <= y1; y += 1) for (let x = x0; x <= x1; x += 1) mask[y * width + x] = 1;
   };
+  // А-like solid sample and Ё-like sample with a hole and two dots.
   rect(8, 15, 38, 65);
-  rect(18, 30, 28, 50);
+  rect(18, 30, 28, 50); // will remain filled, simple shape
   rect(55, 18, 91, 65);
   for (let y = 31; y <= 49; y += 1) for (let x = 66; x <= 80; x += 1) mask[y * width + x] = 0;
   rect(60, 8, 66, 13);
@@ -37,6 +38,7 @@ function makeSource() {
   };
 }
 
+// 1. Boundary tracing returns outer and inner contours.
 {
   const width = 20;
   const height = 20;
@@ -48,28 +50,33 @@ function makeSource() {
   assert.ok(contours.every((contour) => contour.length >= 4));
 }
 
+// 2. Cyrillic glyph set preserves Unicode and adds .notdef/space.
 const source = makeSource();
 const glyphSet = createGlyphSet(source, { detail: 96, simplify: 0.4, sideBearing: 60 });
 assert.equal(glyphSet.glyphs.length, 4);
 assert.deepEqual(glyphSet.entries.map((entry) => entry.codepoint), [0x0401, 0x0410]);
 assert.equal(glyphSet.duplicates.length, 0);
 
+// 3. Duplicate labels are rejected deterministically.
 {
   const duplicate = createGlyphSet({ ...source, labels: ['А', 'А'] });
   assert.equal(duplicate.entries.length, 1);
   assert.deepEqual(duplicate.duplicates, ['А']);
 }
 
+// 4. Generated TTF has all required tables and valid global checksum.
 const ttf = buildTrueTypeFont(glyphSet.glyphs, { familyName: 'Тестовый почерк', styleName: 'Regular', version: '1.000' });
 assert.equal(validateTrueType(ttf).length, 0, validateTrueType(ttf).join('\n'));
 const parsed = parseSfntTables(ttf);
 assert.deepEqual(parsed.tables.map((table) => table.tag).sort(), ['OS/2', 'cmap', 'glyf', 'head', 'hhea', 'hmtx', 'loca', 'maxp', 'name', 'post']);
 assert.ok(ttf.length > 500);
 
+// 5. WOFF container is valid and retains all tables.
 const woff = await buildWoffFont(ttf, { compress: false });
 assert.equal(String.fromCharCode(...woff.slice(0, 4)), 'wOFF');
 assert.equal(new DataView(woff.buffer, woff.byteOffset, woff.byteLength).getUint16(12, false), parsed.tables.length);
 
+// 6. CSS and package archive contain deterministic filenames.
 const css = buildFontCss('Тестовый почерк', 'test-handwriting');
 assert.match(css, /format\('woff2'\)/);
 assert.match(css, /test-handwriting\.ttf/);
