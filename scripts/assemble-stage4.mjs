@@ -10,11 +10,11 @@ const targets = [
   ['source-parts/font-app.js', 'font-app.js'],
   ['source-parts/stage4-app.js', 'stage4-app.js'],
   ['source-parts/font-builder.js', 'src/font-builder.js'],
-  ['source-parts/cursive-font.js', 'src/cursive-font.js'],
+  ['source-parts/cursive-font-v2.js', 'src/cursive-font.js'],
   ['source-parts/cursive-app-v2.js', 'cursive-app.js'],
 ];
 const expectedSha256 = new Map([
-  ['src/cursive-font.js', '5b481e88d40980ef61eab9ee5ca585a11613e300a5dcbd91f586ec74506139b4'],
+  ['src/cursive-font.js', '3f06335a69cc08cab9bec6c4f50925c9b6ff70c9b7fbd88bb4a5600ebf86b857'],
   ['cursive-app.js', '50d7a81e4986635edb28898ac9114a473ff9b3a5c6c1177219619720d6b5bfcc'],
 ]);
 
