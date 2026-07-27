@@ -5,6 +5,7 @@ import {
   ensureCursiveProject,
   generateCursiveFormMask,
   parseSfntDirectory,
+  readCursiveFeatureLookups,
   simulateCursiveForms,
   validateCursiveTrueType,
 } from '../src/cursive-font.js';
@@ -82,6 +83,7 @@ const tags = parseSfntDirectory(built.ttf).map(({ tag }) => tag);
 assert.ok(tags.includes('GSUB'));
 assert.ok(tags.includes('GPOS'));
 assert.ok(tags.includes('kern'));
+assert.deepEqual(readCursiveFeatureLookups(built.ttf), { calt: [1, 3, 5], rlig: [1, 3, 5] });
 assert.ok(built.glyphs.some((glyph) => glyph.cursiveEntry));
 assert.ok(built.glyphs.some((glyph) => glyph.cursiveExit));
 assert.equal(built.layout.forms.м.init > built.layout.forms.м.isol, true);
@@ -96,4 +98,4 @@ assert.match(interfaceSource, /fontFamily','fontStyle','fontDetail','fontSimplif
 
 await writeFile('tests/.cursive-fixture.ttf', built.ttf);
 await writeFile('tests/.cursive-layout.json', JSON.stringify(built.layout, null, 2));
-console.log(`All 23 cursive tests passed. TTF ${built.ttf.length} bytes, ${built.glyphs.length} glyphs.`);
+console.log(`All 25 cursive tests passed. TTF ${built.ttf.length} bytes, ${built.glyphs.length} glyphs.`);
