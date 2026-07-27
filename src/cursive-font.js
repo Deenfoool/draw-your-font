@@ -1,18 +1,74 @@
 import {
+  applyRussianDescenderPreset as applyCoreRussianDescenderPreset,
   buildCursiveTrueTypeFont as buildCoreCursiveFont,
+  DESCENDER_LETTERS,
+  ensureCursiveProject as ensureCoreCursiveProject,
+  FORM_NAMES,
+  generateCursiveFormMask as generateCoreCursiveFormMask,
+  getCursiveGlyphMetrics,
+  parseSfntDirectory,
   validateCursiveTrueType as validateCoreCursiveFont,
 } from './cursive-font-v3.js';
 
-export {
-  DESCENDER_LETTERS,
-  FORM_NAMES,
-  applyRussianDescenderPreset,
-  ensureCursiveProject,
-  generateCursiveFormMask,
-  getCursiveGlyphMetrics,
-  parseSfntDirectory,
-  simulateCursiveForms,
-} from './cursive-font-v3.js';
+export { DESCENDER_LETTERS, FORM_NAMES, getCursiveGlyphMetrics, parseSfntDirectory };
+
+function clamp(value, min, max) { return Math.min(max, Math.max(min, Number(value))); }
+
+function sanitizeCursiveAnchors(project) {
+  const cursive = ensureCoreCursiveProject(project);
+  for (const glyph of project.glyphs || []) {
+    const config = cursive.glyphs?.[glyph.char];
+    if (!config) continue;
+    const metrics = getCursiveGlyphMetrics(glyph, config);
+    const highestAllowedY = Math.max(0, metrics.baselineRatio - 0.01);
+    const fallbackY = clamp(cursive.connectionY, metrics.xHeightRatio, highestAllowedY);
+    config.entry = {
+      x: clamp(config.entry?.x ?? 0.08, 0, 1),
+      y: clamp(config.entry?.y ?? fallbackY, 0, highestAllowedY),
+    };
+    config.exit = {
+      x: clamp(config.exit?.x ?? 0.92, 0, 1),
+      y: clamp(config.exit?.y ?? fallbackY, 0, highestAllowedY),
+    };
+  }
+  project.cursive = cursive;
+  return cursive;
+}
+
+export function ensureCursiveProject(project) {
+  return sanitizeCursiveAnchors(project);
+}
+
+export function applyRussianDescenderPreset(project) {
+  applyCoreRussianDescenderPreset(project);
+  return sanitizeCursiveAnchors(project);
+}
+
+export function generateCursiveFormMask(glyph, form = 'isol', cursive, glyphConfig = {}) {
+  const metrics = getCursiveGlyphMetrics(glyph, glyphConfig);
+  const highestAllowedY = Math.max(0, metrics.baselineRatio - 0.01);
+  const safeConfig = {
+    ...glyphConfig,
+    entry: { ...glyphConfig.entry, y: clamp(glyphConfig.entry?.y ?? cursive?.connectionY ?? 0.76, 0, highestAllowedY) },
+    exit: { ...glyphConfig.exit, y: clamp(glyphConfig.exit?.y ?? cursive?.connectionY ?? 0.76, 0, highestAllowedY) },
+  };
+  return generateCoreCursiveFormMask(glyph, form, cursive, safeConfig);
+}
+
+export function simulateCursiveForms(text, project) {
+  const cursive = sanitizeCursiveAnchors(project);
+  const chars = [...String(text || '').normalize('NFC')];
+  return chars.map((char, index) => {
+    const config = cursive.glyphs?.[char];
+    if (!config) return { char, form: 'isol', connectedLeft: false, connectedRight: false };
+    const previous = cursive.glyphs?.[chars[index - 1]];
+    const next = cursive.glyphs?.[chars[index + 1]];
+    const connectedLeft = Boolean(previous?.joinRight && config.joinLeft);
+    const connectedRight = Boolean(config.joinRight && next?.joinLeft);
+    const form = connectedLeft && connectedRight ? 'medi' : connectedRight ? 'init' : connectedLeft ? 'fina' : 'isol';
+    return { char, form, connectedLeft, connectedRight };
+  });
+}
 
 function align4(value) { return (value + 3) & ~3; }
 
@@ -92,6 +148,7 @@ export function readCursiveFeatureLookups(ttfBytes) {
 }
 
 export function buildCursiveTrueTypeFont(project, options = {}) {
+  sanitizeCursiveAnchors(project);
   const built = buildCoreCursiveFont(project, options);
   built.ttf = restrictCursiveFeatureLookups(built.ttf);
   return built;
