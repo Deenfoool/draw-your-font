@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 
 const assembly = await readFile('scripts/assemble-stage4.mjs', 'utf8');
@@ -11,7 +11,32 @@ assert.match(assembly, /cursive-app\.js/);
 assert.match(assembly, /data-dyfr-cursive/);
 assert.match(assembly, /Duplicate source part number/);
 assert.match(assembly, /Missing or unordered source part/);
+assert.match(assembly, /startNumber !== 0 && startNumber !== 1/);
+assert.match(assembly, /const expected = startNumber \+ index/);
 assert.match(assembly, /spawnSync\(process\.execPath, \['--check'/);
+
+function partNumber(name) {
+  const match = /^(\d+)(?:\.gz\.b64|\.txt)$/.exec(name);
+  return match ? Number(match[1]) : null;
+}
+
+for (const directory of [
+  'source-parts/app.js',
+  'source-parts/font-app.js',
+  'source-parts/stage4-app.js',
+  'source-parts/font-builder.js',
+]) {
+  const numbers = (await readdir(directory))
+    .map(partNumber)
+    .filter(Number.isInteger)
+    .sort((left, right) => left - right);
+  assert.ok(numbers.length > 0, `${directory} has no source parts`);
+  assert.ok(numbers[0] === 0 || numbers[0] === 1, `${directory} must start at 0 or 1`);
+  assert.equal(new Set(numbers).size, numbers.length, `${directory} has duplicate part numbers`);
+  numbers.forEach((number, index) => {
+    assert.equal(number, numbers[0] + index, `${directory} has a missing or unordered part`);
+  });
+}
 
 for (const file of ['src/cursive-font-core.js', 'src/cursive-font.js', 'cursive-app.js']) {
   const source = await readFile(file, 'utf8');
