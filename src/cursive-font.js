@@ -120,7 +120,7 @@ export function simulateCursiveForms(text, project) {
   const chars = [...String(text || '').normalize('NFC')];
   return chars.map((char, index) => {
     const config = cursive.glyphs[char];
-    if (!config || !cursive.enabled) return { char, form: 'isol', connectedLeft: false, connectedRight: false };
+    if (!config) return { char, form: 'isol', connectedLeft: false, connectedRight: false };
     const previous = cursive.glyphs[chars[index - 1]];
     const next = cursive.glyphs[chars[index + 1]];
     const connectedLeft = Boolean(previous?.joinRight && config.joinLeft);
