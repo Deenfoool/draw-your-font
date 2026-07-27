@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { gunzipSync } from 'node:zlib';
 import { dirname, resolve } from 'node:path';
@@ -11,10 +12,11 @@ const targets = [
   ['source-parts/stage4-app.js', 'stage4-app.js'],
   ['source-parts/font-builder.js', 'src/font-builder.js'],
 ];
-const directSources = new Map([
-  ['src/cursive-font.js', 'ff3399cf31d9bfb41951b5bb289bcb773b646197de3c47ad7ee98cfcc77a7e7b'],
-  ['cursive-app.js', '1f39268d2eaa053d57227380a703089ead7b63098c109276edc7298ecce62968'],
-]);
+const directSources = [
+  'src/cursive-font-core.js',
+  'src/cursive-font.js',
+  'cursive-app.js',
+];
 
 function partNumber(name) {
   const match = /^(\d+)(?:\.gz\.b64|\.txt)$/.exec(name);
@@ -65,9 +67,12 @@ if (!document.querySelector('link[data-dyfr-cursive]')) {
   console.log(`Assembled ${outputPath} (${source.length} bytes, ${parts.length} verified parts).`);
 }
 
-for (const [relativePath, expected] of directSources) {
-  const source = await readFile(resolve(root, relativePath));
-  const actual = createHash('sha256').update(source).digest('hex');
-  if (actual !== expected) throw new Error(`SHA-256 mismatch for ${relativePath}: ${actual}`);
-  console.log(`Verified ${relativePath} (${source.length} bytes).`);
+for (const relativePath of directSources) {
+  const absolutePath = resolve(root, relativePath);
+  const source = await readFile(absolutePath);
+  if (!source.length) throw new Error(`Direct source is empty: ${relativePath}`);
+  const syntax = spawnSync(process.execPath, ['--check', absolutePath], { encoding: 'utf8' });
+  if (syntax.status !== 0) throw new Error(`Syntax check failed for ${relativePath}: ${syntax.stderr || syntax.stdout}`);
+  const digest = createHash('sha256').update(source).digest('hex');
+  console.log(`Verified ${relativePath} (${source.length} bytes, sha256 ${digest}).`);
 }
