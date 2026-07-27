@@ -1,3 +1,5 @@
+import { MARKER_GRID, METADATA_MM, markerPattern, metadataMatrix } from './template-code.js';
+
 export const A4_MM = Object.freeze({ width: 210, height: 297 });
 export const TEMPLATE_DPI = 200;
 
@@ -26,7 +28,7 @@ export const TEMPLATE_LAYOUTS = Object.freeze({
   large: Object.freeze({ id: 'large', columns: 5, rows: 7, label: 'Крупный: 5 × 7' }),
 });
 
-const PAGE = Object.freeze({ marginX: 10, marginTop: 10, marginBottom: 9, headerHeight: 24, footerHeight: 10, markerSize: 4 });
+const PAGE = Object.freeze({ marginX: 10, marginTop: 10, marginBottom: 9, headerHeight: 24, footerHeight: 10, markerSize: 7 });
 
 export function normalizeCustomCharset(value) {
   const normalized = String(value || '').normalize('NFC');
@@ -78,14 +80,20 @@ export function planTemplatePages(characters, options = {}) {
         capLine: drawingTop + drawingHeight * 0.18, xHeightLine: drawingTop + drawingHeight * 0.39, baseline,
         descenderLine: drawingTop + drawingHeight * 0.88, centerX: x + cellWidth / 2 });
     });
-    pages.push({ pageIndex, pageNumber: pageIndex + 1, pageCount, title, charsetId: options.charsetId || 'custom', layout,
+
+    pages.push({
+      pageIndex, pageNumber: pageIndex + 1, pageCount, title, charsetId: options.charsetId || 'custom', layout,
       grid: { x: gridX, y: gridY, width: gridWidth, height: gridHeight }, cells,
       markers: [
-        { x: PAGE.marginX, y: PAGE.marginTop },
-        { x: A4_MM.width - PAGE.marginX - PAGE.markerSize, y: PAGE.marginTop },
-        { x: PAGE.marginX, y: A4_MM.height - PAGE.marginBottom - PAGE.markerSize },
-        { x: A4_MM.width - PAGE.marginX - PAGE.markerSize, y: A4_MM.height - PAGE.marginBottom - PAGE.markerSize },
-      ], markerSize: PAGE.markerSize, footerY: A4_MM.height - PAGE.marginBottom - PAGE.footerHeight });
+        { id: 0, x: PAGE.marginX, y: PAGE.marginTop },
+        { id: 1, x: A4_MM.width - PAGE.marginX - PAGE.markerSize, y: PAGE.marginTop },
+        { id: 2, x: A4_MM.width - PAGE.marginX - PAGE.markerSize, y: A4_MM.height - PAGE.marginBottom - PAGE.markerSize },
+        { id: 3, x: PAGE.marginX, y: A4_MM.height - PAGE.marginBottom - PAGE.markerSize },
+      ],
+      markerSize: PAGE.markerSize,
+      footerY: A4_MM.height - PAGE.marginBottom - PAGE.footerHeight,
+      metadata: { version: 1, charsetId: options.charsetId || 'custom', layoutId: layout.id, pageIndex, pageCount, totalChars: chars.length },
+    });
   }
   return { title, characters: chars, layout, perPage, pageCount, pages };
 }
@@ -106,20 +114,33 @@ export function validateTemplatePlan(plan) {
 function mmToPx(mm, dpi) { return mm * dpi / 25.4; }
 function setDashedLine(ctx, dashMm, dpi) { ctx.setLineDash(dashMm.map((value) => mmToPx(value, dpi))); }
 function drawLineMm(ctx, x1, y1, x2, y2, dpi) { ctx.beginPath(); ctx.moveTo(mmToPx(x1, dpi), mmToPx(y1, dpi)); ctx.lineTo(mmToPx(x2, dpi), mmToPx(y2, dpi)); ctx.stroke(); }
+
 function drawRegistrationMarker(ctx, marker, size, dpi) {
-  const x = mmToPx(marker.x, dpi), y = mmToPx(marker.y, dpi), s = mmToPx(size, dpi);
-  ctx.save(); ctx.fillStyle = '#000'; ctx.fillRect(x, y, s, s); ctx.fillStyle = '#fff'; ctx.fillRect(x + s * .27, y + s * .27, s * .46, s * .46); ctx.fillStyle = '#000'; ctx.fillRect(x + s * .4, y + s * .4, s * .2, s * .2); ctx.restore();
+  const x = mmToPx(marker.x, dpi), y = mmToPx(marker.y, dpi), module = mmToPx(size / MARKER_GRID, dpi);
+  const pattern = markerPattern(marker.id || 0);
+  ctx.save(); ctx.fillStyle = '#ffffff'; ctx.fillRect(x, y, module * MARKER_GRID, module * MARKER_GRID); ctx.fillStyle = '#000000';
+  for (let row = 0; row < MARKER_GRID; row += 1) for (let column = 0; column < MARKER_GRID; column += 1) if (pattern[row][column]) ctx.fillRect(x + column * module, y + row * module, Math.ceil(module + 0.25), Math.ceil(module + 0.25));
+  ctx.restore();
+}
+
+function drawMetadataCode(ctx, metadata, dpi) {
+  const matrix = metadataMatrix(metadata), cell = mmToPx(METADATA_MM.cell, dpi), x0 = mmToPx(METADATA_MM.x, dpi), y0 = mmToPx(METADATA_MM.y, dpi);
+  ctx.save(); ctx.fillStyle = '#ffffff'; ctx.fillRect(x0 - cell * 0.35, y0 - cell * 0.35, cell * (matrix[0].length + 0.7), cell * (matrix.length + 0.7));
+  ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = Math.max(1, mmToPx(0.08, dpi));
+  for (let row = 0; row < matrix.length; row += 1) for (let column = 0; column < matrix[row].length; column += 1) {
+    const x = x0 + column * cell, y = y0 + row * cell; ctx.fillStyle = matrix[row][column] ? '#000000' : '#ffffff';
+    ctx.fillRect(x, y, Math.ceil(cell + 0.15), Math.ceil(cell + 0.15)); ctx.strokeRect(x, y, cell, cell);
+  }
+  ctx.restore();
 }
 
 export function renderTemplatePage(ctx, page, options = {}) {
-  const dpi = Number(options.dpi || TEMPLATE_DPI);
-  const widthPx = Math.round(mmToPx(A4_MM.width, dpi));
-  const heightPx = Math.round(mmToPx(A4_MM.height, dpi));
+  const dpi = Number(options.dpi || TEMPLATE_DPI), widthPx = Math.round(mmToPx(A4_MM.width, dpi)), heightPx = Math.round(mmToPx(A4_MM.height, dpi));
   const showGuides = options.showGuides !== false;
   if (ctx.canvas.width !== widthPx) ctx.canvas.width = widthPx;
   if (ctx.canvas.height !== heightPx) ctx.canvas.height = heightPx;
-  ctx.save(); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, widthPx, heightPx); ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
-  page.markers.forEach((marker) => drawRegistrationMarker(ctx, marker, page.markerSize, dpi));
+  ctx.save(); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, widthPx, heightPx); ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+  page.markers.forEach((marker) => drawRegistrationMarker(ctx, marker, page.markerSize, dpi)); drawMetadataCode(ctx, page.metadata, dpi);
   const left = 17;
   ctx.fillStyle = '#111827'; ctx.font = `700 ${Math.round(mmToPx(4.8, dpi))}px Arial, "DejaVu Sans", sans-serif`; ctx.fillText(page.title, mmToPx(left, dpi), mmToPx(17, dpi));
   ctx.font = `400 ${Math.round(mmToPx(2.7, dpi))}px Arial, "DejaVu Sans", sans-serif`; ctx.fillStyle = '#475569';
@@ -128,28 +149,35 @@ export function renderTemplatePage(ctx, page, options = {}) {
   ctx.textAlign = 'right'; ctx.fillStyle = '#111827'; ctx.font = `700 ${Math.round(mmToPx(3.2, dpi))}px Arial, "DejaVu Sans", sans-serif`;
   ctx.fillText(`Страница ${page.pageNumber} / ${page.pageCount}`, mmToPx(193, dpi), mmToPx(18, dpi));
   ctx.font = `400 ${Math.round(mmToPx(2.5, dpi))}px Arial, "DejaVu Sans", sans-serif`; ctx.fillStyle = '#64748b';
-  ctx.fillText(`DYF-RU · ${page.layout.columns}×${page.layout.rows}`, mmToPx(193, dpi), mmToPx(23, dpi)); ctx.textAlign = 'left';
+  ctx.fillText(`DYF-RU v4 · ${page.layout.columns}×${page.layout.rows}`, mmToPx(193, dpi), mmToPx(23, dpi)); ctx.textAlign = 'left';
 
   for (const cell of page.cells) {
     const x = mmToPx(cell.x, dpi), y = mmToPx(cell.y, dpi), w = mmToPx(cell.width, dpi), h = mmToPx(cell.height, dpi);
-    ctx.strokeStyle = '#111827'; ctx.lineWidth = Math.max(1, mmToPx(.26, dpi)); ctx.setLineDash([]); ctx.strokeRect(x, y, w, h);
-    ctx.fillStyle = '#f1f5f9'; ctx.fillRect(x, y, w, mmToPx(cell.labelBand, dpi)); ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = Math.max(1, mmToPx(.15, dpi));
+    ctx.strokeStyle = '#111827'; ctx.lineWidth = Math.max(1, mmToPx(0.26, dpi)); ctx.setLineDash([]); ctx.strokeRect(x, y, w, h);
+    ctx.fillStyle = '#f1f5f9'; ctx.fillRect(x, y, w, mmToPx(cell.labelBand, dpi)); ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = Math.max(1, mmToPx(0.15, dpi));
     drawLineMm(ctx, cell.x, cell.y + cell.labelBand, cell.x + cell.width, cell.y + cell.labelBand, dpi);
-    ctx.fillStyle = '#0f172a'; ctx.textAlign = 'left'; ctx.font = `700 ${Math.round(mmToPx(Math.min(3.8, cell.labelBand * .62), dpi))}px Arial, "DejaVu Sans", sans-serif`;
-    ctx.fillText(cell.char, mmToPx(cell.x + 2, dpi), mmToPx(cell.y + cell.labelBand * .73, dpi));
+    ctx.fillStyle = '#0f172a'; ctx.textAlign = 'left'; ctx.font = `700 ${Math.round(mmToPx(Math.min(3.8, cell.labelBand * 0.62), dpi))}px Arial, "DejaVu Sans", sans-serif`;
+    ctx.fillText(cell.char, mmToPx(cell.x + 2, dpi), mmToPx(cell.y + cell.labelBand * 0.73, dpi));
     ctx.textAlign = 'right'; ctx.fillStyle = '#64748b'; ctx.font = `400 ${Math.round(mmToPx(2.1, dpi))}px Arial, "DejaVu Sans", sans-serif`;
-    ctx.fillText(String(cell.index + 1), mmToPx(cell.x + cell.width - 1.7, dpi), mmToPx(cell.y + cell.labelBand * .7, dpi));
+    ctx.fillText(String(cell.index + 1), mmToPx(cell.x + cell.width - 1.7, dpi), mmToPx(cell.y + cell.labelBand * 0.7, dpi));
     if (showGuides) {
-      ctx.lineWidth = Math.max(1, mmToPx(.16, dpi)); ctx.strokeStyle = '#94a3b8'; setDashedLine(ctx, [1.2, 1.2], dpi);
-      drawLineMm(ctx, cell.x + 1, cell.capLine, cell.x + cell.width - 1, cell.capLine, dpi); drawLineMm(ctx, cell.x + 1, cell.xHeightLine, cell.x + cell.width - 1, cell.xHeightLine, dpi); drawLineMm(ctx, cell.x + 1, cell.descenderLine, cell.x + cell.width - 1, cell.descenderLine, dpi);
-      ctx.strokeStyle = '#334155'; ctx.lineWidth = Math.max(1.2, mmToPx(.28, dpi)); ctx.setLineDash([]); drawLineMm(ctx, cell.x + 1, cell.baseline, cell.x + cell.width - 1, cell.baseline, dpi);
-      ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = Math.max(1, mmToPx(.14, dpi)); setDashedLine(ctx, [.8, 1.4], dpi); drawLineMm(ctx, cell.centerX, cell.drawingTop + 1, cell.centerX, cell.y + cell.height - 1, dpi);
+      ctx.lineWidth = Math.max(1, mmToPx(0.16, dpi)); ctx.strokeStyle = '#94a3b8'; setDashedLine(ctx, [1.2, 1.2], dpi);
+      drawLineMm(ctx, cell.x + 1, cell.capLine, cell.x + cell.width - 1, cell.capLine, dpi);
+      drawLineMm(ctx, cell.x + 1, cell.xHeightLine, cell.x + cell.width - 1, cell.xHeightLine, dpi);
+      drawLineMm(ctx, cell.x + 1, cell.descenderLine, cell.x + cell.width - 1, cell.descenderLine, dpi);
+      ctx.strokeStyle = '#334155'; ctx.lineWidth = Math.max(1.2, mmToPx(0.28, dpi)); ctx.setLineDash([]);
+      drawLineMm(ctx, cell.x + 1, cell.baseline, cell.x + cell.width - 1, cell.baseline, dpi);
+      ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = Math.max(1, mmToPx(0.14, dpi)); setDashedLine(ctx, [0.8, 1.4], dpi);
+      drawLineMm(ctx, cell.centerX, cell.drawingTop + 1, cell.centerX, cell.y + cell.height - 1, dpi);
     }
   }
-  ctx.setLineDash([]); const footerY = page.footerY + 3.2; ctx.fillStyle = '#475569'; ctx.textAlign = 'left'; ctx.font = `400 ${Math.round(mmToPx(2.35, dpi))}px Arial, "DejaVu Sans", sans-serif`;
+
+  ctx.setLineDash([]); const footerY = page.footerY + 3.2; ctx.fillStyle = '#475569'; ctx.textAlign = 'left';
+  ctx.font = `400 ${Math.round(mmToPx(2.35, dpi))}px Arial, "DejaVu Sans", sans-serif`;
   ctx.fillText('Печать: A4, масштаб 100%, без подгонки под страницу.', mmToPx(10, dpi), mmToPx(footerY, dpi));
-  const rulerX = 145, rulerY = footerY - 1.4; ctx.strokeStyle = '#111827'; ctx.lineWidth = Math.max(1, mmToPx(.25, dpi)); drawLineMm(ctx, rulerX, rulerY, rulerX + 50, rulerY, dpi);
-  for (let i = 0; i <= 5; i += 1) drawLineMm(ctx, rulerX + i * 10, rulerY - 1.2, rulerX + i * 10, rulerY + 1.2, dpi);
+  const rulerX = 145, rulerY = footerY - 1.4; ctx.strokeStyle = '#111827'; ctx.lineWidth = Math.max(1, mmToPx(0.25, dpi));
+  drawLineMm(ctx, rulerX, rulerY, rulerX + 50, rulerY, dpi);
+  for (let i = 0; i <= 5; i += 1) { const tickX = rulerX + i * 10; drawLineMm(ctx, tickX, rulerY - 1.2, tickX, rulerY + 1.2, dpi); }
   ctx.textAlign = 'center'; ctx.fillText('контрольные 50 мм', mmToPx(rulerX + 25, dpi), mmToPx(footerY + 3.4, dpi)); ctx.restore();
   return { widthPx, heightPx };
 }
