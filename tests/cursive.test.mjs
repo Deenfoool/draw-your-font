@@ -8,6 +8,7 @@ import {
   simulateCursiveForms,
   validateCursiveTrueType,
 } from '../src/cursive-font.js';
+import { deserializeProject, serializeProject } from '../src/project.js';
 
 function glyph(char, seed = 0) {
   const width = 54;
@@ -66,7 +67,16 @@ cursive.glyphs.т.joinRight = false;
 assert.deepEqual(simulateCursiveForms('тата', project).map(({ form }) => form), ['isol', 'init', 'fina', 'isol']);
 cursive.glyphs.т.joinRight = true;
 
-const built = buildCursiveTrueTypeFont(project, { detail: 96, simplify: 0.4, glyphHeight: 700 });
+cursive.enabled = true;
+cursive.glyphs.м.entry = { x: 0.17, y: 0.74 };
+cursive.glyphs.м.forms.medi.offsetX = 3;
+const restored = deserializeProject(serializeProject(project));
+assert.equal(restored.cursive.enabled, true);
+assert.deepEqual(restored.cursive.glyphs.м.entry, { x: 0.17, y: 0.74 });
+assert.equal(restored.cursive.glyphs.м.forms.medi.offsetX, 3);
+assert.deepEqual(simulateCursiveForms('мама', restored).map(({ form }) => form), ['init', 'medi', 'medi', 'fina']);
+
+const built = buildCursiveTrueTypeFont(restored, { detail: 96, simplify: 0.4, glyphHeight: 700 });
 assert.equal(validateCursiveTrueType(built.ttf).length, 0);
 const tags = parseSfntDirectory(built.ttf).map(({ tag }) => tag);
 assert.ok(tags.includes('GSUB'));
@@ -80,4 +90,4 @@ assert.equal(built.layout.forms.м.fina > built.layout.forms.м.medi, true);
 
 await writeFile('tests/.cursive-fixture.ttf', built.ttf);
 await writeFile('tests/.cursive-layout.json', JSON.stringify(built.layout, null, 2));
-console.log(`All 15 cursive tests passed. TTF ${built.ttf.length} bytes, ${built.glyphs.length} glyphs.`);
+console.log(`All 19 cursive tests passed. TTF ${built.ttf.length} bytes, ${built.glyphs.length} glyphs.`);
