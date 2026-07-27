@@ -1,15 +1,18 @@
 import {
   buildCursiveTrueTypeFont as buildCoreCursiveFont,
   validateCursiveTrueType as validateCoreCursiveFont,
-} from './cursive-font-core.js';
+} from './cursive-font-v3.js';
 
 export {
+  DESCENDER_LETTERS,
   FORM_NAMES,
+  applyRussianDescenderPreset,
   ensureCursiveProject,
   generateCursiveFormMask,
+  getCursiveGlyphMetrics,
   parseSfntDirectory,
   simulateCursiveForms,
-} from './cursive-font-core.js';
+} from './cursive-font-v3.js';
 
 function align4(value) { return (value + 3) & ~3; }
 
