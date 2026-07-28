@@ -6,7 +6,7 @@ const assembly = await readFile('scripts/assemble-stage4.mjs', 'utf8');
 assert.doesNotMatch(assembly, /source-parts\/cursive-font-v2\.js/);
 assert.doesNotMatch(assembly, /source-parts\/cursive-app-v4\.js/);
 for (const name of [
-  'src/cursive-font-core.js', 'src/cursive-font-v3.js', 'src/cursive-font.js',
+  'src/cursive-font-core.js', 'src/cursive-font-v3.js', 'src/russian-joining.js', 'src/cursive-font.js',
   'src/font-library.js', 'src/public-library-client.js', 'src/recognition-v2.js', 'cursive-app.js',
   'cursive-ui-polish.js', 'ui-flow.js', 'library-bridge.js', 'library.js',
   'public-library.js', 'server.mjs',
@@ -34,7 +34,7 @@ for (const directory of ['source-parts/app.js', 'source-parts/font-app.js', 'sou
 }
 
 const directJs = [
-  'src/cursive-font-core.js', 'src/cursive-font-v3.js', 'src/cursive-font.js',
+  'src/cursive-font-core.js', 'src/cursive-font-v3.js', 'src/russian-joining.js', 'src/cursive-font.js',
   'src/font-library.js', 'src/public-library-client.js', 'src/recognition-v2.js', 'cursive-app.js',
   'cursive-ui-polish.js', 'ui-flow.js', 'library-bridge.js', 'library.js',
   'public-library.js', 'server.mjs',
@@ -48,6 +48,7 @@ for (const file of directJs) {
 
 const legacyCore = await readFile('src/cursive-font-core.js', 'utf8');
 const descenderCore = await readFile('src/cursive-font-v3.js', 'utf8');
+const joiningGrammar = await readFile('src/russian-joining.js', 'utf8');
 const wrapper = await readFile('src/cursive-font.js', 'utf8');
 const libraryStorage = await readFile('src/font-library.js', 'utf8');
 const publicClient = await readFile('src/public-library-client.js', 'utf8');
@@ -66,9 +67,14 @@ assert.match(descenderCore, /DESCENDER_LETTERS/);
 assert.match(descenderCore, /function vectorizeBaselineGlyph/);
 assert.match(descenderCore, /baseline - point\.y/);
 assert.match(descenderCore, /function buildGpos\(/);
+assert.match(joiningGrammar, /RUSSIAN_SCHOOL_ENTRY_CLASS/);
+assert.match(joiningGrammar, /resolveJoiningSequence/);
+assert.match(joiningGrammar, /contextualForm/);
 assert.match(wrapper, /from '\.\/cursive-font-v3\.js'/);
+assert.match(wrapper, /from '\.\/russian-joining\.js'/);
 assert.match(wrapper, /restrictCursiveFeatureLookups/);
 assert.match(wrapper, /\[1, 3, 5\]/);
+assert.match(wrapper, /exitVariants/);
 assert.match(recognition, /sauvolaBinarize/);
 assert.match(recognition, /otsuBinarize/);
 assert.match(recognition, /suppressGuideLines/);
@@ -111,4 +117,4 @@ assert.match(stage4, /import '\.\/cursive-ui-polish\.js';/);
 assert.match(stage4, /import '\.\/ui-flow\.js';/);
 assert.match(stage4, /import '\.\/library-bridge\.js';/);
 assert.match(stage4, /link\.href = '\.\/cursive\.css'/);
-console.log('Runtime assembly, Recognition Engine 2 and libraries regression test: PASS');
+console.log('Runtime assembly, Recognition Engine 2, Russian joining grammar and libraries regression test: PASS');
