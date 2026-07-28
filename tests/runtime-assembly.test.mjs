@@ -8,8 +8,9 @@ assert.doesNotMatch(assembly, /source-parts\/cursive-app-v4\.js/);
 for (const name of [
   'src/cursive-font-core.js', 'src/cursive-font-v3.js', 'src/russian-joining.js',
   'src/contextual-cursive-mask.js', 'src/opentype-contextual-layout.js', 'src/contextual-cursive-font.js',
-  'src/cursive-font.js', 'src/font-library.js', 'src/public-library-client.js', 'src/recognition-v2.js', 'cursive-app.js',
-  'cursive-ui-polish.js', 'ui-flow.js', 'library-bridge.js', 'library.js',
+  'src/cursive-font.js', 'src/connection-template.js', 'src/connection-template-scanner.js',
+  'src/font-library.js', 'src/public-library-client.js', 'src/recognition-v2.js', 'cursive-app.js',
+  'connection-template-app.js', 'cursive-ui-polish.js', 'ui-flow.js', 'library-bridge.js', 'library.js',
   'public-library.js', 'server.mjs',
 ]) assert.ok(assembly.includes(name), `${name} is missing from runtime verification`);
 assert.match(assembly, /patchRecognitionEngine/);
@@ -37,8 +38,9 @@ for (const directory of ['source-parts/app.js', 'source-parts/font-app.js', 'sou
 const directJs = [
   'src/cursive-font-core.js', 'src/cursive-font-v3.js', 'src/russian-joining.js',
   'src/contextual-cursive-mask.js', 'src/opentype-contextual-layout.js', 'src/contextual-cursive-font.js',
-  'src/cursive-font.js', 'src/font-library.js', 'src/public-library-client.js', 'src/recognition-v2.js', 'cursive-app.js',
-  'cursive-ui-polish.js', 'ui-flow.js', 'library-bridge.js', 'library.js',
+  'src/cursive-font.js', 'src/connection-template.js', 'src/connection-template-scanner.js',
+  'src/font-library.js', 'src/public-library-client.js', 'src/recognition-v2.js', 'cursive-app.js',
+  'connection-template-app.js', 'cursive-ui-polish.js', 'ui-flow.js', 'library-bridge.js', 'library.js',
   'public-library.js', 'server.mjs',
 ];
 for (const file of directJs) {
@@ -55,10 +57,13 @@ const contextualMask = await readFile('src/contextual-cursive-mask.js', 'utf8');
 const contextualLayout = await readFile('src/opentype-contextual-layout.js', 'utf8');
 const contextualBuilder = await readFile('src/contextual-cursive-font.js', 'utf8');
 const wrapper = await readFile('src/cursive-font.js', 'utf8');
+const connectionTemplate = await readFile('src/connection-template.js', 'utf8');
+const connectionScanner = await readFile('src/connection-template-scanner.js', 'utf8');
 const libraryStorage = await readFile('src/font-library.js', 'utf8');
 const publicClient = await readFile('src/public-library-client.js', 'utf8');
 const recognition = await readFile('src/recognition-v2.js', 'utf8');
 const app = await readFile('cursive-app.js', 'utf8');
+const connectionApp = await readFile('connection-template-app.js', 'utf8');
 const polish = await readFile('cursive-ui-polish.js', 'utf8');
 const workflow = await readFile('ui-flow.js', 'utf8');
 const libraryBridge = await readFile('library-bridge.js', 'utf8');
@@ -89,6 +94,14 @@ assert.match(wrapper, /from '\.\/russian-joining\.js'/);
 assert.match(wrapper, /from '\.\/contextual-cursive-font\.js'/);
 assert.match(wrapper, /generateRussianContextualFormMask/);
 assert.match(wrapper, /lookupIndex % 2 !== 1/);
+assert.match(connectionTemplate, /CONNECTION_TEMPLATE_VERSION = 2/);
+assert.match(connectionTemplate, /planConnectionTemplatePages/);
+assert.match(connectionTemplate, /renderConnectionTemplatePage/);
+assert.match(connectionTemplate, /99|samples/);
+assert.match(connectionScanner, /scanConnectionTemplateWithRetries/);
+assert.match(connectionScanner, /applyConnectionSamplesToProject/);
+assert.match(connectionScanner, /reachedTarget/);
+assert.match(connectionScanner, /draw-your-font-connection-samples/);
 assert.match(recognition, /sauvolaBinarize/);
 assert.match(recognition, /otsuBinarize/);
 assert.match(recognition, /suppressGuideLines/);
@@ -96,6 +109,11 @@ assert.match(recognition, /directionalRepair/);
 assert.match(recognition, /assessGlyphConfidence/);
 assert.match(recognition, /recognitionVersion: 2/);
 assert.match(app, /cursiveDescenderPreset/);
+assert.match(connectionApp, /cursiveConnectionTemplateDownload/);
+assert.match(connectionApp, /cursiveConnectionTemplateFiles/);
+assert.match(connectionApp, /scanConnectionTemplateWithRetries/);
+assert.match(connectionApp, /drawyourfont:connection-samples-updated/);
+assert.match(polish, /import '\.\/connection-template-app\.js'/);
 assert.match(polish, /cursiveDisclosureToggle/);
 assert.match(polish, /canvas\.dataset\.lines/);
 assert.match(workflow, /Как вам удобнее создать шрифт/);
@@ -131,4 +149,4 @@ assert.match(stage4, /import '\.\/cursive-ui-polish\.js';/);
 assert.match(stage4, /import '\.\/ui-flow\.js';/);
 assert.match(stage4, /import '\.\/library-bridge\.js';/);
 assert.match(stage4, /link\.href = '\.\/cursive\.css'/);
-console.log('Runtime assembly, Recognition Engine 2, contextual Russian joining and libraries regression test: PASS');
+console.log('Runtime assembly, Recognition Engine 2, contextual Russian joining, connection templates and libraries regression test: PASS');
