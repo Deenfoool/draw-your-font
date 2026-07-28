@@ -17,6 +17,10 @@ function ensureStylesheet() {
   document.head.append(link);
 }
 
+function setButtonLabel(button, label) {
+  if (button && button.textContent !== label) button.textContent = label;
+}
+
 function installLibraryNavigation() {
   const topbar = document.querySelector('.topbar');
   if (!topbar || byId('fontLibraryLink')) return;
@@ -80,8 +84,8 @@ function getCurrentBuild() {
 function setSaveStatus(text, mode = 'idle') {
   const status = byId('librarySaveStatus');
   if (!status) return;
-  status.textContent = text;
-  status.dataset.mode = mode;
+  if (status.textContent !== text) status.textContent = text;
+  if (status.dataset.mode !== mode) status.dataset.mode = mode;
 }
 
 function refreshLibraryButton() {
@@ -90,11 +94,11 @@ function refreshLibraryButton() {
   if (!button || !status) return;
   const build = getCurrentBuild();
   const visible = Boolean(build);
-  button.hidden = !visible;
-  status.hidden = !visible;
-  button.disabled = !build;
+  if (button.hidden === visible) button.hidden = !visible;
+  if (status.hidden === visible) status.hidden = !visible;
+  if (button.disabled === visible) button.disabled = !visible;
   if (build && button.dataset.busy !== '1' && button.dataset.saved !== '1') {
-    button.textContent = 'Добавить в библиотеку';
+    setButtonLabel(button, 'Добавить в библиотеку');
     setSaveStatus('Готовый шрифт можно сохранить локально.', 'ok');
   }
 }
@@ -105,7 +109,7 @@ async function addCurrentFont() {
   if (!button || !build || button.dataset.busy === '1') return null;
   button.dataset.busy = '1';
   button.disabled = true;
-  button.textContent = 'Сохраняю…';
+  setButtonLabel(button, 'Сохраняю…');
   setSaveStatus('Записываю файлы и проект в локальную библиотеку…', 'busy');
   try {
     const { project, outputs, familyName, styleName, glyphCount, mode } = build;
@@ -129,7 +133,7 @@ async function addCurrentFont() {
     });
     requestPersistentLibraryStorage();
     button.dataset.saved = '1';
-    button.textContent = 'Сохранено в библиотеке';
+    setButtonLabel(button, 'Сохранено в библиотеке');
     setSaveStatus(`«${record.familyName} ${record.styleName}» сохранён. Повторное добавление обновит эту запись.`, 'ok');
     window.dispatchEvent(new CustomEvent('drawyourfont:library-updated', { detail: { id: record.id } }));
     try {
@@ -141,7 +145,7 @@ async function addCurrentFont() {
     return record;
   } catch (error) {
     console.error(error);
-    button.textContent = 'Добавить в библиотеку';
+    setButtonLabel(button, 'Добавить в библиотеку');
     setSaveStatus(error.message || 'Не удалось сохранить шрифт в библиотеку.', 'error');
     return null;
   } finally {
@@ -157,7 +161,7 @@ function watchBuildState() {
     const button = byId('addFontToLibrary');
     if (button?.dataset.saved === '1' && !getCurrentBuild()) {
       delete button.dataset.saved;
-      button.textContent = 'Добавить в библиотеку';
+      setButtonLabel(button, 'Добавить в библиотеку');
     }
     refreshLibraryButton();
   });
@@ -167,7 +171,7 @@ function watchBuildState() {
       const button = byId('addFontToLibrary');
       if (button) {
         delete button.dataset.saved;
-        button.textContent = 'Добавить в библиотеку';
+        setButtonLabel(button, 'Добавить в библиотеку');
       }
       setTimeout(refreshLibraryButton, 0);
     });
@@ -184,9 +188,10 @@ function restoreProjectFromLibrary() {
     const api = window.__drawYourFontProject;
     if (!api?.importProject) return setTimeout(attempt, 50);
     try {
-      api.importProject(payload);
-      sessionStorage.removeItem(PENDING_PROJECT_KEY);
-      setTimeout(() => byId('glyphEditor')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+      Promise.resolve(api.importProject(payload)).then(() => {
+        sessionStorage.removeItem(PENDING_PROJECT_KEY);
+        setTimeout(() => byId('glyphEditor')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+      }).catch(error => console.error(error));
     } catch (error) {
       console.error(error);
     }
