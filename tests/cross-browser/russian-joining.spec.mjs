@@ -157,6 +157,7 @@ test.describe('Russian School Joining Engine', () => {
         pairAdjustments: overridden.layout.pairAdjustments.length,
         blocked: Number.isInteger(overridden.layout.contextualForms.т.blocked),
         widths,
+        widthDeltas: { mo: widths.overrideMo - widths.baselineMo, ta: widths.overrideTa - widths.baselineTa },
         matrix: { total: matrix.total, inspected: matrix.inspected, cells: document.querySelectorAll('#pairInspectorMatrix .pair-cell').length },
         pair: { status: pair.status, profile: pair.metrics?.entryProfile, exitClass: pair.metrics?.exitClass, spacing: pair.metrics?.spacing },
         disconnected: disconnected.status,
@@ -173,8 +174,8 @@ test.describe('Russian School Joining Engine', () => {
     expect(result.overrideLookups).toHaveLength(11);
     expect(result.pairAdjustments).toBe(10);
     expect(result.blocked).toBe(true);
-    expect(result.widths.overrideMo - result.widths.baselineMo).toBeGreaterThan(3);
-    expect(Math.abs(result.widths.overrideTa - result.widths.baselineTa)).toBeGreaterThan(2);
+    expect(result.widthDeltas.mo).toBeGreaterThan(3);
+    expect(Math.abs(result.widthDeltas.ta)).toBeGreaterThan(2);
     expect(result.widths.overrideMama).toBeGreaterThan(0);
     expect(result.widths.overrideDrozh).toBeGreaterThan(0);
     expect(result.matrix).toEqual({ total: 25, inspected: 24, cells: 25 });
@@ -187,5 +188,6 @@ test.describe('Russian School Joining Engine', () => {
     expect(result.selectedPair).toBe('мо');
 
     test.info().annotations.push({ type: 'browser', description: browserName });
+    test.info().annotations.push({ type: 'width-delta', description: JSON.stringify(result.widthDeltas) });
   });
 });
