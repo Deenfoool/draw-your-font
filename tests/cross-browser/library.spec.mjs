@@ -52,7 +52,10 @@ test('built font can be saved, previewed, reopened and deleted from the library'
   await expect(page.locator('#librarySaveStatus')).toContainText('сохранён');
 
   await page.goto('/library.html');
-  await page.waitForFunction(() => window.__drawYourFontLibraryPage?.getState().fonts.length === 1);
+  await page.waitForFunction(() => {
+    const state = window.__drawYourFontLibraryPage?.getState();
+    return state?.fonts.length === 1 && !state.rendering;
+  });
   await expect(page.locator('.library-font-card')).toHaveCount(1);
   await expect(page.locator('.library-font-header h2')).toHaveText('Почерк Дениса');
   await expect(page.locator('.library-mode')).toHaveText('Обычный');
@@ -78,10 +81,16 @@ test('built font can be saved, previewed, reopened and deleted from the library'
   expect(restored).toEqual({ id: 'library-e2e-project', title: 'Почерк Дениса', glyph: 'а' });
 
   await page.goto('/library.html');
-  await page.waitForFunction(() => window.__drawYourFontLibraryPage?.getState().fonts.length === 1);
+  await page.waitForFunction(() => {
+    const state = window.__drawYourFontLibraryPage?.getState();
+    return state?.fonts.length === 1 && !state.rendering;
+  });
   page.once('dialog', dialog => dialog.accept());
   await page.locator('.library-delete').click();
-  await page.waitForFunction(() => window.__drawYourFontLibraryPage?.getState().fonts.length === 0);
+  await page.waitForFunction(() => {
+    const state = window.__drawYourFontLibraryPage?.getState();
+    return state?.fonts.length === 0 && !state.rendering;
+  });
   await expect(page.locator('.library-empty')).toBeVisible();
 
   test.info().annotations.push({ type: 'browser', description: browserName });
