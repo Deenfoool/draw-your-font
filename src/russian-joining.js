@@ -2,6 +2,7 @@ export const JOINING_GRAMMAR_VERSION = 1;
 export const JOINING_PRESET = 'ru-school-v1';
 export const JOINING_TARGET_CLASSES = Object.freeze(['upper', 'middle', 'lower', 'special']);
 export const JOINING_CLASSES = Object.freeze([...JOINING_TARGET_CLASSES, 'none']);
+export const RUSSIAN_CONNECTION_LEVELS = Object.freeze({ upper: 0.59, special: 0.48, middle: 0.31, lower: 0.075 });
 
 export const RUSSIAN_LOWERCASE = Object.freeze([...`абвгдеёжзийклмнопрстуфхцчшщъыьэюя`]);
 
@@ -52,18 +53,24 @@ export function contextualFormName(baseForm, exitClass = 'none') {
 }
 
 export function resolveConnectionRatio(metrics = {}, joiningClass = 'middle', options = {}) {
-  const xHeight = clamp(metrics.xHeightRatio ?? metrics.xHeightY ?? 0.38, 0, 0.94);
+  const cap = clamp(metrics.capRatio ?? metrics.capY ?? 0.12, 0, 0.84);
+  const xHeight = clamp(metrics.xHeightRatio ?? metrics.xHeightY ?? 0.38, cap + 0.01, 0.94);
   const baseline = clamp(metrics.baselineRatio ?? metrics.baselineY ?? 0.82, xHeight + 0.02, 0.99);
-  const span = Math.max(0.02, baseline - xHeight);
-  const ratios = {
-    upper: xHeight + span * clamp(options.upper ?? 0.06, 0, 1),
-    middle: xHeight + span * clamp(options.middle ?? 0.5, 0, 1),
-    lower: xHeight + span * clamp(options.lower ?? 0.88, 0, 1),
-    special: xHeight + span * clamp(options.special ?? 0.24, 0, 1),
-  };
+  const body = Math.max(0.04, baseline - cap);
+  const levels = { ...RUSSIAN_CONNECTION_LEVELS, ...(options.fontLevels || {}) };
+  const ratios = Object.fromEntries(JOINING_TARGET_CLASSES.map((key) => [
+    key,
+    baseline - body * clamp(levels[key] ?? RUSSIAN_CONNECTION_LEVELS[key], 0.01, 0.99),
+  ]));
   const key = normalizeJoiningClass(joiningClass, 'middle');
-  const fallback = clamp(options.fallback ?? ratios.middle, xHeight, baseline - 0.01);
-  return key === 'none' ? fallback : clamp(ratios[key], xHeight, baseline - 0.01);
+  const fallback = clamp(options.fallback ?? ratios.middle, cap + 0.01, baseline - 0.01);
+  return key === 'none' ? fallback : clamp(ratios[key], cap + 0.01, baseline - 0.01);
+}
+
+export function connectionRatioToFontLevel(metrics = {}, ratio) {
+  const cap = clamp(metrics.capRatio ?? metrics.capY ?? 0.12, 0, 0.84);
+  const baseline = clamp(metrics.baselineRatio ?? metrics.baselineY ?? 0.82, cap + 0.03, 0.99);
+  return (baseline - clamp(ratio, cap, baseline)) / Math.max(0.04, baseline - cap);
 }
 
 export function createDefaultExitVariants(metrics = {}, legacyExit = {}, previous = {}) {
