@@ -47,6 +47,7 @@ test('built font can be saved, previewed, reopened and deleted from the library'
         },
       }),
     };
+    document.querySelector('#downloadTtf').disabled = false;
     window.__drawYourFontLibraryBridge.refresh();
   });
 
