@@ -86,6 +86,7 @@ assert.deepEqual(Object.keys(forms.medi), ['upper', 'middle', 'lower', 'special'
 assert.equal(new Set(Object.values(forms.init)).size, 4);
 assert.equal(new Set(Object.values(forms.medi)).size, 4);
 assert.ok(Number.isInteger(forms.fina));
+assert.equal(forms.blocked, null);
 
 for (const id of Object.values(forms.init)) {
   assert.ok(built.glyphs[id].cursiveExit);
@@ -103,4 +104,20 @@ assert.deepEqual(lookups.calt, built.layout.featureLookups);
 assert.deepEqual(lookups.rlig, built.layout.featureLookups);
 assert.ok(lookups.calt.every((lookupIndex) => lookupIndex % 2 === 1));
 
-console.log(`Stage 11.2 contextual cursive tests: PASS. ${built.glyphs.length} glyphs, ${built.layout.featureLookups.length} contextual lookups.`);
+cursive.pairOverrides['м|о'] = { exitClass: 'upper', spacing: 6 };
+cursive.pairOverrides['е|с'] = { connect: false };
+const overridden = buildCursiveTrueTypeFont(project, { detail: 96, simplify: 0.4, glyphHeight: 700 });
+assert.deepEqual(validateCursiveTrueType(overridden.ttf), []);
+assert.equal(overridden.layout.engine, 'russian-school-contextual-v1');
+assert.deepEqual(overridden.layout.featureLookups, [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21]);
+assert.ok(Number.isInteger(overridden.layout.contextualForms.е.blocked));
+assert.equal(overridden.glyphs[overridden.layout.contextualForms.е.blocked].cursiveEntry, undefined);
+assert.equal(overridden.glyphs[overridden.layout.contextualForms.е.blocked].cursiveExit, undefined);
+assert.equal(overridden.layout.pairAdjustments.length, 10);
+assert.ok(overridden.layout.pairAdjustments.every((pair) => pair.pairKey === 'м|о' && pair.xAdvance !== 0));
+assert.ok(overridden.ttf.length > built.ttf.length);
+const overriddenLookups = readCursiveFeatureLookups(overridden.ttf);
+assert.deepEqual(overriddenLookups.calt, overridden.layout.featureLookups);
+assert.deepEqual(overriddenLookups.rlig, overridden.layout.featureLookups);
+
+console.log(`Stage 11.5 contextual cursive tests: PASS. ${built.glyphs.length}/${overridden.glyphs.length} glyphs, ${built.layout.featureLookups.length}/${overridden.layout.featureLookups.length} contextual lookups.`);
