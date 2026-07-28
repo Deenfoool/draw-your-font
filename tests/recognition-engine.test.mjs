@@ -15,7 +15,9 @@ function paper(width, height) {
 }
 function rect(gray, width, x0, y0, x1, y1, value) {
   const height = gray.length / width;
-  for (let y = Math.max(0, y0); y <= Math.min(height - 1, y1); y += 1) for (let x = Math.max(0, x0); x <= Math.min(width - 1, x1); x += 1) gray[y * width + x] = value;
+  for (let y = Math.max(0, y0); y <= Math.min(height - 1, y1); y += 1) {
+    for (let x = Math.max(0, x0); x <= Math.min(width - 1, x1); x += 1) gray[y * width + x] = value;
+  }
 }
 
 // 1. Multi-candidate selection keeps a thin glyph under uneven lighting.
@@ -63,7 +65,22 @@ function rect(gray, width, x0, y0, x1, y1, value) {
   assert.ok(!result.quality.warnings.some(item => item.includes('Верхний знак')));
 }
 
-// 4. Template extraction uses known cell geometry and preserves a descender below baseline.
+// 4. The separated right body of Ы/ы must not be discarded as noise.
+{
+  const width = 110, height = 120;
+  const gray = new Uint8Array(width * height); gray.fill(242);
+  rect(gray, width, 22, 35, 48, 96, 32);
+  rect(gray, width, 66, 38, 78, 94, 32);
+  const result = selectBestGlyphMask(gray, width, height, {
+    expectedChar: 'ы',
+    guides: { capY: 18, xHeightY: 36, baselineY: 98, descenderY: 112 },
+    guideGeometry: { rows: [18, 36, 98, 112], columns: [55] },
+  });
+  assert.ok(result.quality.components >= 2, JSON.stringify(result.quality));
+  assert.ok(!result.quality.warnings.some(item => item.includes('Вторая часть')));
+}
+
+// 5. Template extraction uses known cell geometry and preserves a descender below baseline.
 {
   const width = 420, height = 594;
   const gray = new Uint8Array(width * height); gray.fill(242);
@@ -83,11 +100,13 @@ function rect(gray, width, x0, y0, x1, y1, value) {
   assert.equal(glyph.source.recognitionVersion, 2);
   assert.ok(glyph.quality.confidence > 0);
   let below = 0;
-  for (let y = Math.floor(glyph.guides.baselineY + 1); y < glyph.height; y += 1) for (let px = 0; px < glyph.width; px += 1) below += glyph.mask[y * glyph.width + px];
+  for (let y = Math.floor(glyph.guides.baselineY + 1); y < glyph.height; y += 1) {
+    for (let px = 0; px < glyph.width; px += 1) below += glyph.mask[y * glyph.width + px];
+  }
   assert.ok(below > 0, 'descender should remain below baseline');
 }
 
-// 5. Manual page selection rejects speckle and keeps two glyphs.
+// 6. Manual page selection rejects speckle and keeps two glyphs without assuming an 88-character alphabet.
 {
   const width = 180, height = 100;
   const gray = paper(width, height);
@@ -98,6 +117,7 @@ function rect(gray, width, x0, y0, x1, y1, value) {
   const result = selectBestPageSegmentation(gray, width, height, { minArea: 10, closeIterations: 0 });
   assert.equal(result.glyphs.length, 2, JSON.stringify(result.candidates));
   assert.ok(result.confidence >= 50);
+  assert.ok(result.candidates.every(candidate => Number.isInteger(candidate.rawCount)));
 }
 
 console.log('Recognition Engine 2.0 tests passed.');
