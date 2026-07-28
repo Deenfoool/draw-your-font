@@ -93,7 +93,8 @@ export function selectBestPageSegmentation(grayInput, width, height, options = {
   const gray = normalizeGrayRobust(grayInput);
   const definitions = candidateDefinitions(opts, width, height);
   const statisticsCache = new Map();
-  const candidates = [];
+  const diagnostics = [];
+  let best = null;
   for (const definition of definitions) {
     const thresholded = buildCandidate(gray, width, height, definition, statisticsCache);
     let mask = thresholded.mask;
@@ -105,14 +106,15 @@ export function selectBestPageSegmentation(grayInput, width, height, options = {
     const filtered = filterPageComponents(merged, width, height, opts);
     const glyphs = orderComponentsIntoRows(filtered);
     const score = pageCandidateScore(mask, width, height, glyphs, rawComponents);
-    candidates.push({ method: definition.name, score, mask, glyphs, rawComponents, localBackground: thresholded.localBackground, normalized: gray });
+    diagnostics.push({ method: definition.name, score, glyphCount: glyphs.length });
+    const candidate = { method: definition.name, score, mask, glyphs, rawComponents, localBackground: thresholded.localBackground, normalized: gray };
+    if (!best || score > best.score || (score === best.score && Math.abs(glyphs.length - 88) < Math.abs(best.glyphs.length - 88))) best = candidate;
   }
-  candidates.sort((left, right) => right.score - left.score || Math.abs(left.glyphs.length - 88) - Math.abs(right.glyphs.length - 88));
-  const best = candidates[0];
+  diagnostics.sort((left, right) => right.score - left.score || Math.abs(left.glyphCount - 88) - Math.abs(right.glyphCount - 88));
   return {
     ...best,
     confidence: best.score,
-    candidates: candidates.map(candidate => ({ method: candidate.method, score: candidate.score, glyphCount: candidate.glyphs.length })),
+    candidates: diagnostics,
   };
 }
 
