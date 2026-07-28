@@ -24,9 +24,8 @@ function setStatus(text, mode = 'idle') {
 }
 
 function humanDate(value) {
-  try {
-    return new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
-  } catch { return String(value || ''); }
+  try { return new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)); }
+  catch { return String(value || ''); }
 }
 
 function fontCountLabel(count) {
@@ -60,6 +59,14 @@ function currentPreviewText(record) {
   return byId('libraryPreviewText')?.value || record.sampleText || 'Съешь же ещё этих мягких французских булок.';
 }
 
+function fontFaceDescriptors(styleName) {
+  const value = String(styleName || '').toLowerCase();
+  return {
+    style: value.includes('italic') ? 'italic' : value.includes('oblique') ? 'oblique' : 'normal',
+    weight: value.includes('bold') ? '700' : '400',
+  };
+}
+
 async function applyStoredFont(record, preview) {
   const existing = state.faces.get(record.id);
   if (existing) {
@@ -71,7 +78,7 @@ async function applyStoredFont(record, preview) {
   if (!bytes) return;
   const family = `DYFR Library ${record.id.replace(/[^a-z0-9]/gi, '').slice(-24)} ${Date.now()}`;
   try {
-    const face = new FontFace(family, bytes.slice(0), { style: record.styleName || 'normal' });
+    const face = new FontFace(family, bytes.slice(0), fontFaceDescriptors(record.styleName));
     await face.load();
     document.fonts.add(face);
     state.faces.set(record.id, { face, family });
