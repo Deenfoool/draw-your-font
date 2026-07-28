@@ -13,11 +13,20 @@ const targets = [
   ['source-parts/font-builder.js', 'src/font-builder.js'],
 ];
 const directSources = [
+  'src/segmentation.js',
+  'src/recognition-engine.js',
+  'src/recognition/base.js',
+  'src/recognition/components.js',
+  'src/recognition/select.js',
+  'src/recognition/template.js',
+  'src/scan-recovery.js',
   'src/cursive-font-core.js',
   'src/cursive-font-v3.js',
   'src/cursive-font.js',
   'src/font-library.js',
   'src/public-library-client.js',
+  'stage4-recovery-app.js',
+  'recognition-quality-ui.js',
   'cursive-app.js',
   'cursive-ui-polish.js',
   'ui-flow.js',
@@ -34,7 +43,7 @@ function partNumber(name) {
 
 function validatePartSequence(partsDirectory, parts) {
   if (!parts.length) throw new Error(`No source parts found in ${partsDirectory}`);
-  const numbers = parts.map((part) => part.number);
+  const numbers = parts.map(part => part.number);
   const unique = new Set(numbers);
   if (unique.size !== numbers.length) throw new Error(`Duplicate source part number in ${partsDirectory}: ${numbers.join(', ')}`);
   const startNumber = numbers[0];
@@ -49,8 +58,8 @@ function validatePartSequence(partsDirectory, parts) {
 for (const [partsDirectory, outputPath] of targets) {
   const directory = resolve(root, partsDirectory);
   const parts = (await readdir(directory))
-    .map((name) => ({ name, number: partNumber(name) }))
-    .filter((part) => Number.isInteger(part.number))
+    .map(name => ({ name, number: partNumber(name) }))
+    .filter(part => Number.isInteger(part.number))
     .sort((left, right) => left.number - right.number || left.name.localeCompare(right.name));
   const { startNumber } = validatePartSequence(partsDirectory, parts);
   const chunks = await Promise.all(parts.map(({ name }) => readFile(resolve(directory, name), 'utf8')));
@@ -62,15 +71,20 @@ for (const [partsDirectory, outputPath] of targets) {
   if (outputPath === 'stage4-app.js') {
     source = Buffer.concat([source, Buffer.from(`
 import './stage4-recovery-app.js';
+import './recognition-quality-ui.js';
 import './cursive-app.js';
 import './cursive-ui-polish.js';
 import './ui-flow.js';
 import './library-bridge.js';
-if (!document.querySelector('link[data-dyfr-cursive]')) {
+for (const [selector, href, marker] of [
+  ['link[data-dyfr-recognition]', './recognition.css', 'dyfrRecognition'],
+  ['link[data-dyfr-cursive]', './cursive.css', 'dyfrCursive'],
+]) {
+  if (document.querySelector(selector)) continue;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = './cursive.css';
-  link.dataset.dyfrCursive = '1';
+  link.href = href;
+  link.dataset[marker] = '1';
   document.head.append(link);
 }
 `, 'utf8')]);
