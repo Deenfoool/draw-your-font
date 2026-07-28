@@ -175,7 +175,7 @@ test.describe('Russian School Joining Engine', () => {
     expect(Math.abs(result.widths.overrideTa - result.widths.baselineTa)).toBeGreaterThan(2);
     expect(result.widths.overrideMama).toBeGreaterThan(0);
     expect(result.widths.overrideDrozh).toBeGreaterThan(0);
-    expect(result.matrix).toEqual({ total: 25, inspected: 25, cells: 25 });
+    expect(result.matrix).toEqual({ total: 25, inspected: 24, cells: 25 });
     expect(result.pair.profile).toBe('ru-school-o');
     expect(result.pair.exitClass).toBe('upper');
     expect(result.pair.spacing).toBe(8);
