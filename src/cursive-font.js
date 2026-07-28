@@ -119,7 +119,7 @@ function sanitizeCursiveAnchors(project, preservedJoiningState = null) {
     const variants = createDefaultExitVariants(metrics, config.exit, saved.exitVariants || {});
     config.exitVariants = Object.fromEntries(JOINING_TARGET_CLASSES.map((joiningClass) => [joiningClass, {
       x: clamp(variants[joiningClass].x, 0, 1),
-      y: clamp(variants[joiningClass].y, metrics.xHeightRatio, highestAllowedY),
+      y: clamp(variants[joiningClass].y, metrics.capRatio + 0.01, highestAllowedY),
     }]));
     config.contextualForms = cloneContextualForms(saved.contextualForms || config.contextualForms);
   }
