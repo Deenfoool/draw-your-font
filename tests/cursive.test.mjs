@@ -102,6 +102,8 @@ liveCursive.glyphs.м.forms.medi.offsetX = 3;
 liveCursive.glyphs.м.contextualForms.medi.lower.offsetX = 5;
 liveCursive.glyphs.р.baselineY = 0.75;
 liveCursive.glyphs.р.descenderScale = 1.25;
+liveCursive.pairOverrides['м|о'] = { exitClass: 'upper', spacing: 6 };
+liveCursive.pairOverrides['т|а'] = { connect: false };
 applyRussianDescenderPreset(project);
 ensureCursiveProject(project).glyphs.р.descenderScale = 1.25;
 const restored = deserializeProject(serializeProject(project));
@@ -111,7 +113,11 @@ assert.equal(restored.cursive.glyphs.м.forms.medi.offsetX, 3);
 assert.equal(restored.cursive.glyphs.м.contextualForms.medi.lower.offsetX, 5);
 assert.equal(restored.cursive.glyphs.р.hasDescender, true);
 assert.equal(restored.cursive.glyphs.р.descenderScale, 1.25);
+assert.deepEqual(restored.cursive.pairOverrides['м|о'], { exitClass: 'upper', spacing: 6 });
+assert.deepEqual(restored.cursive.pairOverrides['т|а'], { connect: false });
 assert.deepEqual(simulateCursiveForms('дрожь', restored).map(({ form }) => form), ['init', 'medi', 'medi', 'medi', 'fina']);
+assert.deepEqual(simulateCursiveForms('мо', restored).map(({ contextualForm }) => contextualForm), ['init.u', 'fina']);
+assert.deepEqual(simulateCursiveForms('та', restored).map(({ form }) => form), ['isol', 'isol']);
 
 const built = buildCursiveTrueTypeFont(restored, { detail: 96, simplify: 0.4, glyphHeight: 700 });
 assert.equal(validateCursiveTrueType(built.ttf).length, 0);
@@ -121,7 +127,7 @@ assert.ok(tags.includes('GPOS'));
 assert.ok(tags.includes('kern'));
 const featureLookups = readCursiveFeatureLookups(built.ttf);
 assert.deepEqual(featureLookups.calt, featureLookups.rlig);
-assert.ok(featureLookups.calt.length >= 3);
+assert.equal(featureLookups.calt.length, 11);
 assert.ok(featureLookups.calt.every((lookupIndex) => lookupIndex % 2 === 1));
 assert.equal(built.layout.engine, 'russian-school-contextual-v1');
 assert.ok(built.glyphs.some((item) => item.cursiveEntry));
@@ -131,6 +137,8 @@ assert.equal(built.layout.forms.м.medi > built.layout.forms.м.init, true);
 assert.equal(built.layout.forms.м.fina > built.layout.forms.м.medi, true);
 assert.equal(new Set(Object.values(built.layout.contextualForms.м.init)).size, 4);
 assert.equal(new Set(Object.values(built.layout.contextualForms.м.medi)).size, 4);
+assert.ok(Number.isInteger(built.layout.contextualForms.т.blocked));
+assert.equal(built.layout.pairAdjustments.length, 10);
 
 const rId = built.layout.forms.р.isol;
 const aId = built.layout.forms.а.isol;
@@ -153,4 +161,4 @@ assert.match(interfaceSource, /fontFeatureSettings = '"rlig" 1, "calt" 1, "curs"
 
 await writeFile('tests/.cursive-fixture.ttf', built.ttf);
 await writeFile('tests/.cursive-layout.json', JSON.stringify(built.layout, null, 2));
-console.log(`Cursive/contextual/descender tests passed. TTF ${built.ttf.length} bytes, ${built.glyphs.length} glyphs, descent ${built.layout.metrics.descent}.`);
+console.log(`Cursive/contextual/descender/override tests passed. TTF ${built.ttf.length} bytes, ${built.glyphs.length} glyphs, descent ${built.layout.metrics.descent}.`);
