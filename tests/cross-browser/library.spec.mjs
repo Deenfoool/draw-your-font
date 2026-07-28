@@ -4,6 +4,10 @@ test('built font can be saved, previewed, reopened and deleted from the library'
   await page.goto('/');
   await page.waitForFunction(() => window.__drawYourFontLibraryBridge && window.__drawYourFontProject);
 
+  const add = page.locator('#addFontToLibrary');
+  await expect(add).toBeHidden();
+  await expect(page.locator('#fontLibraryLink')).toBeVisible();
+
   await page.evaluate(async () => {
     const library = await import('/src/font-library.js');
     const projectModule = await import('/src/project.js');
@@ -46,10 +50,11 @@ test('built font can be saved, previewed, reopened and deleted from the library'
     window.__drawYourFontLibraryBridge.refresh();
   });
 
-  const add = page.locator('#addFontToLibrary');
+  await expect(add).toBeVisible();
   await expect(add).toBeEnabled();
   await add.click();
   await expect(page.locator('#librarySaveStatus')).toContainText('сохранён');
+  await page.evaluate(() => window.__drawYourFontLibraryBridge.addCurrentFont());
 
   await page.goto('/library.html');
   await page.waitForFunction(() => {
