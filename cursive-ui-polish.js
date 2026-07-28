@@ -1,3 +1,4 @@
+import './connection-template-app.js';
 import {
   ensureCursiveProject,
   generateCursiveFormMask,
