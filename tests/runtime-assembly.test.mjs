@@ -7,10 +7,14 @@ assert.doesNotMatch(assembly, /source-parts\/cursive-font-v2\.js/);
 assert.doesNotMatch(assembly, /source-parts\/cursive-app-v4\.js/);
 for (const name of [
   'src/cursive-font-core.js', 'src/cursive-font-v3.js', 'src/cursive-font.js',
-  'src/font-library.js', 'src/public-library-client.js', 'cursive-app.js',
+  'src/font-library.js', 'src/public-library-client.js', 'src/recognition-v2.js', 'cursive-app.js',
   'cursive-ui-polish.js', 'ui-flow.js', 'library-bridge.js', 'library.js',
   'public-library.js', 'server.mjs',
 ]) assert.ok(assembly.includes(name), `${name} is missing from runtime verification`);
+assert.match(assembly, /patchRecognitionEngine/);
+assert.match(assembly, /recognizeGrayscale/);
+assert.match(assembly, /annotateGlyphConfidence/);
+assert.match(assembly, /recognition-v2\.css/);
 assert.match(assembly, /Duplicate source part number/);
 assert.match(assembly, /Missing or unordered source part/);
 assert.match(assembly, /startNumber !== 0 && startNumber !== 1/);
@@ -31,7 +35,7 @@ for (const directory of ['source-parts/app.js', 'source-parts/font-app.js', 'sou
 
 const directJs = [
   'src/cursive-font-core.js', 'src/cursive-font-v3.js', 'src/cursive-font.js',
-  'src/font-library.js', 'src/public-library-client.js', 'cursive-app.js',
+  'src/font-library.js', 'src/public-library-client.js', 'src/recognition-v2.js', 'cursive-app.js',
   'cursive-ui-polish.js', 'ui-flow.js', 'library-bridge.js', 'library.js',
   'public-library.js', 'server.mjs',
 ];
@@ -47,6 +51,7 @@ const descenderCore = await readFile('src/cursive-font-v3.js', 'utf8');
 const wrapper = await readFile('src/cursive-font.js', 'utf8');
 const libraryStorage = await readFile('src/font-library.js', 'utf8');
 const publicClient = await readFile('src/public-library-client.js', 'utf8');
+const recognition = await readFile('src/recognition-v2.js', 'utf8');
 const app = await readFile('cursive-app.js', 'utf8');
 const polish = await readFile('cursive-ui-polish.js', 'utf8');
 const workflow = await readFile('ui-flow.js', 'utf8');
@@ -64,6 +69,12 @@ assert.match(descenderCore, /function buildGpos\(/);
 assert.match(wrapper, /from '\.\/cursive-font-v3\.js'/);
 assert.match(wrapper, /restrictCursiveFeatureLookups/);
 assert.match(wrapper, /\[1, 3, 5\]/);
+assert.match(recognition, /sauvolaBinarize/);
+assert.match(recognition, /otsuBinarize/);
+assert.match(recognition, /suppressGuideLines/);
+assert.match(recognition, /directionalRepair/);
+assert.match(recognition, /assessGlyphConfidence/);
+assert.match(recognition, /recognitionVersion: 2/);
 assert.match(app, /cursiveDescenderPreset/);
 assert.match(polish, /cursiveDisclosureToggle/);
 assert.match(polish, /canvas\.dataset\.lines/);
@@ -88,10 +99,16 @@ assert.match(server, /MAX_BODY/);
 assert.match(server, /wasm-unsafe-eval/);
 assert.match(server, /PRIVATE_PREFIXES/);
 
+const assembledScanner = await readFile('app.js', 'utf8');
+assert.match(assembledScanner, /from '\.\/src\/recognition-v2\.js'/);
+assert.match(assembledScanner, /recognizeGrayscale/);
+assert.match(assembledScanner, /glyph-confidence/);
+assert.match(assembledScanner, /recognitionVersion/);
+
 const stage4 = await readFile('stage4-app.js', 'utf8');
 assert.match(stage4, /import '\.\/cursive-app\.js';/);
 assert.match(stage4, /import '\.\/cursive-ui-polish\.js';/);
 assert.match(stage4, /import '\.\/ui-flow\.js';/);
 assert.match(stage4, /import '\.\/library-bridge\.js';/);
 assert.match(stage4, /link\.href = '\.\/cursive\.css'/);
-console.log('Runtime assembly, local library and shared library regression test: PASS');
+console.log('Runtime assembly, Recognition Engine 2 and libraries regression test: PASS');
