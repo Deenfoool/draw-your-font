@@ -1,0 +1,8 @@
+node_modules/
+vendor/
+data/
+.tmp-*/
+.tmp-playwright-public/
+test-results/
+playwright-report/
+.DS_Store
