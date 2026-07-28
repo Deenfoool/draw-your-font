@@ -37,6 +37,7 @@ function installLibraryControls() {
   button.type = 'button';
   button.className = 'library-add-button';
   button.disabled = true;
+  button.hidden = true;
   button.textContent = 'Добавить в библиотеку';
   const link = document.createElement('a');
   link.className = 'library-open-button';
@@ -45,7 +46,8 @@ function installLibraryControls() {
   const status = document.createElement('p');
   status.id = 'librarySaveStatus';
   status.className = 'library-save-status';
-  status.textContent = 'Сначала соберите шрифт.';
+  status.hidden = true;
+  status.textContent = 'Готовый шрифт можно сохранить локально.';
   grid.append(button, link);
   grid.after(status);
   button.addEventListener('click', addCurrentFont);
@@ -84,11 +86,17 @@ function setSaveStatus(text, mode = 'idle') {
 
 function refreshLibraryButton() {
   const button = byId('addFontToLibrary');
-  if (!button) return;
+  const status = byId('librarySaveStatus');
+  if (!button || !status) return;
   const build = getCurrentBuild();
+  const visible = Boolean(build);
+  button.hidden = !visible;
+  status.hidden = !visible;
   button.disabled = !build;
-  if (!build && button.dataset.busy !== '1') setSaveStatus('Сначала соберите шрифт.', 'idle');
-  if (build && button.dataset.busy !== '1' && button.dataset.saved !== '1') setSaveStatus('Готовый шрифт можно сохранить локально.', 'ok');
+  if (build && button.dataset.busy !== '1' && button.dataset.saved !== '1') {
+    button.textContent = 'Добавить в библиотеку';
+    setSaveStatus('Готовый шрифт можно сохранить локально.', 'ok');
+  }
 }
 
 async function addCurrentFont() {
@@ -157,7 +165,10 @@ function watchBuildState() {
   for (const eventName of ['drawyourfont:cursive-updated', 'drawyourfont:project-updated', 'drawyourfont:segmentation-updated']) {
     window.addEventListener(eventName, () => {
       const button = byId('addFontToLibrary');
-      if (button) { delete button.dataset.saved; button.textContent = 'Добавить в библиотеку'; }
+      if (button) {
+        delete button.dataset.saved;
+        button.textContent = 'Добавить в библиотеку';
+      }
       setTimeout(refreshLibraryButton, 0);
     });
   }
