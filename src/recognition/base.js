@@ -11,6 +11,7 @@ export const UPPER_ACCENT_CHARS = new Set([...`ЁёЙй`]);
 export const DESCENDER_CHARS = new Set([...`др уфщцДЦЩ`.replace(/\s/g, '')]);
 export const SMALL_PUNCTUATION = new Set([...`.,:;!?'\"«»-—`]);
 export const TWO_PART_PUNCTUATION = new Set([...`:;!?`]);
+export const MULTI_COMPONENT_CHARS = new Set([...`Ыы%№`]);
 
 export function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
