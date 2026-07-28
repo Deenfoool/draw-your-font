@@ -112,9 +112,10 @@ with tempfile.TemporaryDirectory(prefix='dyfr-library-') as temp:
                 baseName: 'library-font', familyName: 'Библиотечный шрифт', styleName: 'Regular',
                 glyphSet: { entries: [{ char: 'а' }] },
               } }) };
+              document.querySelector('#downloadTtf').disabled = false;
               window.__drawYourFontLibraryBridge.refresh();
               const button = document.querySelector('#addFontToLibrary');
-              if (button.disabled) throw new Error('Library button is disabled after build');
+              if (button.disabled || button.hidden) throw new Error('Library button is unavailable after build');
               const record = await window.__drawYourFontLibraryBridge.addCurrentFont();
               if (!record) throw new Error(document.querySelector('#librarySaveStatus').textContent);
               return { id: record.id, family: record.familyName, bytes: record.totalBytes, status: document.querySelector('#librarySaveStatus').textContent };
@@ -123,7 +124,7 @@ with tempfile.TemporaryDirectory(prefix='dyfr-library-') as temp:
                 raise RuntimeError(f'Font save failed: {saved}')
 
             call(ws, 20, 'Page.navigate', {'url': f'http://127.0.0.1:{PORT}/library.html'})
-            wait_eval(ws, 'Boolean(window.__drawYourFontLibraryPage?.getState().fonts.length === 1)', 40)
+            wait_eval(ws, 'Boolean(window.__drawYourFontLibraryPage?.getState().fonts.length === 1 && !window.__drawYourFontLibraryPage?.getState().rendering)', 40)
             library_state = evaluate(ws, 30, r'''(() => {
               const card = document.querySelector('.library-font-card');
               const field = document.querySelector('#libraryPreviewText');
@@ -149,7 +150,7 @@ with tempfile.TemporaryDirectory(prefix='dyfr-library-') as temp:
               window.confirm = () => true;
               document.querySelector('.library-delete').click();
               const start = performance.now();
-              while (window.__drawYourFontLibraryPage.getState().fonts.length) {
+              while (window.__drawYourFontLibraryPage.getState().fonts.length || window.__drawYourFontLibraryPage.getState().rendering) {
                 if (performance.now() - start > 10000) throw new Error('Delete timeout');
                 await new Promise(resolve => setTimeout(resolve, 50));
               }
