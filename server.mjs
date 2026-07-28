@@ -20,7 +20,10 @@ const MIME = {
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml',
   '.ttf': 'font/ttf', '.woff': 'font/woff', '.woff2': 'font/woff2', '.pdf': 'application/pdf', '.txt': 'text/plain; charset=utf-8',
 };
-const PRIVATE_PREFIXES = ['/data/', '/node_modules/', '/tests/', '/scripts/', '/source-parts/', '/.git/', '/.github/'];
+const PRIVATE_PREFIXES = ['/data/', '/node_modules/', '/tests/', '/scripts/', '/source-parts/', '/.git/', '/.github/', '/deploy/'];
+const PRIVATE_FILES = new Set(['/server.mjs', '/package.json', '/Dockerfile', '/docker-compose.yml', '/README.md', '/LICENSE', '/THIRD_PARTY_NOTICES.md']);
+const DEFAULT_MAX_PUBLIC_BYTES = 5 * 1024 * 1024 * 1024;
+const DEFAULT_MAX_PUBLIC_FONTS = 10000;
 
 function args(argv) {
   const out = {};
@@ -97,10 +100,11 @@ function normalize(payload) {
 }
 function sameOrigin(req) { const origin = req.headers.origin; if (!origin) return true; try { return new URL(origin).host === req.headers.host; } catch { return false; } }
 function bearer(req) { const value = String(req.headers.authorization || ''); return value.startsWith('Bearer ') ? value.slice(7).trim() : ''; }
-function limiter() {
+function limiter(trustProxy = false) {
   const buckets = new Map();
   return req => {
-    const now = Date.now(), key = String(req.socket.remoteAddress || 'unknown');
+    const forwarded = trustProxy ? String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() : '';
+    const now = Date.now(), key = forwarded || String(req.socket.remoteAddress || 'unknown');
     const entries = (buckets.get(key) || []).filter(time => now - time < 15 * 60_000);
     if (entries.length >= 12) throw fail('Слишком много операций публикации. Повторите позже.', 429);
     entries.push(now); buckets.set(key, entries);
@@ -111,6 +115,11 @@ async function metadata(dataDir, id) {
   try { return JSON.parse(await readFile(resolve(dataDir, id, 'metadata.json'), 'utf8')); }
   catch (error) { if (error?.code === 'ENOENT') throw fail('Публикация не найдена.', 404); throw error; }
 }
+async function catalogStats(dataDir) {
+  const records = await list(dataDir);
+  return { records, totalBytes: records.reduce((sum, item) => sum + (Number(item.totalBytes) || 0), 0) };
+}
+function itemBytes(item) { return Object.values(item.files || {}).reduce((sum, value) => sum + (value?.length || 0), 0); }
 async function list(dataDir) {
   await mkdir(dataDir, { recursive: true });
   const records = [];
@@ -152,7 +161,11 @@ function authorized(req, ownerHash, adminToken) { const token = bearer(req); ret
 
 export function createDrawYourFontServer(options = {}) {
   const rootDir = resolve(options.rootDir || ROOT), dataDir = resolve(options.dataDir || process.env.DYFR_DATA_DIR || resolve(rootDir, 'data/public-fonts'));
-  const adminToken = options.adminToken || process.env.DYFR_ADMIN_TOKEN || '', rate = limiter();
+  const adminToken = options.adminToken || process.env.DYFR_ADMIN_TOKEN || '';
+  const trustProxy = options.trustProxy ?? process.env.DYFR_TRUST_PROXY === '1';
+  const maxPublicBytes = Number(options.maxPublicBytes || process.env.DYFR_MAX_PUBLIC_BYTES || DEFAULT_MAX_PUBLIC_BYTES);
+  const maxPublicFonts = Number(options.maxPublicFonts || process.env.DYFR_MAX_PUBLIC_FONTS || DEFAULT_MAX_PUBLIC_FONTS);
+  const rate = limiter(trustProxy);
   const server = createServer(async (req, res) => {
     try {
       const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
@@ -165,7 +178,11 @@ export function createDrawYourFontServer(options = {}) {
       }
       if (url.pathname === API && req.method === 'POST') {
         if (!sameOrigin(req)) throw fail('Публикация разрешена только с этого сайта.', 403); rate(req);
-        const item = normalize(await readJson(req)), id = `${safeName(item.familyName).slice(0, 42)}-${randomUUID().replace(/-/g, '').slice(0, 12)}`, token = randomBytes(32).toString('base64url');
+        const item = normalize(await readJson(req));
+        const usage = await catalogStats(dataDir);
+        if (usage.records.length >= maxPublicFonts) throw fail('Общая библиотека достигла лимита количества шрифтов.', 507);
+        if (usage.totalBytes + itemBytes(item) > maxPublicBytes) throw fail('На сервере недостаточно места для новой публикации.', 507);
+        const id = `${safeName(item.familyName).slice(0, 42)}-${randomUUID().replace(/-/g, '').slice(0, 12)}`, token = randomBytes(32).toString('base64url');
         return sendJson(res, 201, { font: publicMeta(await save(dataDir, id, item, hash(token))), ownerToken: token });
       }
       const match = new RegExp(`^${API}/([^/]+)(?:/files/(ttf|woff|woff2|css|zip))?$`).exec(url.pathname);
@@ -182,7 +199,10 @@ export function createDrawYourFontServer(options = {}) {
         if (!key && req.method === 'PUT') {
           if (!sameOrigin(req)) throw fail('Обновление разрешено только с этого сайта.', 403); rate(req);
           const previous = await metadata(dataDir, id); if (!authorized(req, previous.ownerHash, adminToken)) throw fail('Нет прав на обновление этой публикации.', 403);
-          return sendJson(res, 200, { font: publicMeta(await save(dataDir, id, normalize(await readJson(req)), previous.ownerHash, previous)) });
+          const item = normalize(await readJson(req));
+          const usage = await catalogStats(dataDir);
+          if (usage.totalBytes - (Number(previous.totalBytes) || 0) + itemBytes(item) > maxPublicBytes) throw fail('На сервере недостаточно места для обновления публикации.', 507);
+          return sendJson(res, 200, { font: publicMeta(await save(dataDir, id, item, previous.ownerHash, previous)) });
         }
         if (!key && req.method === 'DELETE') {
           if (!sameOrigin(req)) throw fail('Удаление разрешено только с этого сайта.', 403); rate(req);
@@ -193,7 +213,8 @@ export function createDrawYourFontServer(options = {}) {
       if (req.method !== 'GET' && req.method !== 'HEAD') throw fail('Метод не поддерживается.', 405);
       let pathname; try { pathname = decodeURIComponent(url.pathname); } catch { throw fail('Некорректный адрес.'); }
       if (pathname === '/') pathname = '/index.html';
-      if (pathname.includes('\0') || PRIVATE_PREFIXES.some(prefix => pathname.startsWith(prefix))) throw fail('Файл не найден.', 404);
+      const hasPrivateSegment = pathname.split('/').some(segment => segment.startsWith('.') && segment.length > 1);
+      if (pathname.includes('\0') || hasPrivateSegment || PRIVATE_FILES.has(pathname) || PRIVATE_PREFIXES.some(prefix => pathname.startsWith(prefix))) throw fail('Файл не найден.', 404);
       const file = resolve(rootDir, `.${pathname}`), rootPrefix = rootDir.endsWith(sep) ? rootDir : `${rootDir}${sep}`;
       if (file !== rootDir && !file.startsWith(rootPrefix)) throw fail('Файл не найден.', 404);
       const info = await stat(file).catch(() => null); if (!info?.isFile()) throw fail('Файл не найден.', 404);
