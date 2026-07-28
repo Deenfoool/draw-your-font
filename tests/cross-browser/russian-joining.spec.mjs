@@ -96,9 +96,11 @@ test.describe('Russian School Joining Engine', () => {
       cursive.enabled = true;
       cursive.pairOverrides = {};
 
+      project.font.familyName = 'DYFR Browser Baseline';
       const baseline = buildCursiveTrueTypeFont(project, { detail: 72, simplify: 0.55, glyphHeight: 700 });
       cursive.pairOverrides['м|о'] = { exitClass: 'upper', spacing: 8 };
       cursive.pairOverrides['т|а'] = { connect: false };
+      project.font.familyName = 'DYFR Browser Override';
       const overridden = buildCursiveTrueTypeFont(project, { detail: 72, simplify: 0.55, glyphHeight: 700 });
 
       const install = async (name, bytes) => {
