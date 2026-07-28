@@ -1,0 +1,26 @@
+.glyph-confidence {
+  margin-left: auto;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.glyph-confidence.good {
+  background: rgb(22 163 74 / 16%);
+  color: #86efac;
+}
+.glyph-confidence.review {
+  background: rgb(245 158 11 / 18%);
+  color: #fcd34d;
+}
+.glyph-confidence.bad {
+  background: rgb(239 68 68 / 18%);
+  color: #fca5a5;
+}
+.glyph-card:has(.glyph-confidence.review) {
+  border-color: rgb(245 158 11 / 45%);
+}
+.glyph-card:has(.glyph-confidence.bad) {
+  border-color: rgb(239 68 68 / 60%);
+  box-shadow: 0 0 0 2px rgb(239 68 68 / 8%);
+}
