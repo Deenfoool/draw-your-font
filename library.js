@@ -8,7 +8,14 @@ import {
 
 const PENDING_PROJECT_KEY = 'dyfr:library-open-project';
 const byId = id => document.getElementById(id);
-const state = { fonts: [], faces: new Map(), rendering: false };
+const state = {
+  fonts: [],
+  faces: new Map(),
+  rendering: false,
+  reloadQueued: false,
+  reloadPromise: null,
+  channel: null,
+};
 
 function setStatus(text, mode = 'idle') {
   const element = byId('libraryStatus');
@@ -20,6 +27,15 @@ function humanDate(value) {
   try {
     return new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
   } catch { return String(value || ''); }
+}
+
+function fontCountLabel(count) {
+  const mod100 = count % 100;
+  const mod10 = count % 10;
+  if (mod100 >= 11 && mod100 <= 14) return `${count} шрифтов`;
+  if (mod10 === 1) return `${count} шрифт`;
+  if (mod10 >= 2 && mod10 <= 4) return `${count} шрифта`;
+  return `${count} шрифтов`;
 }
 
 function download(value, name, type) {
@@ -136,7 +152,10 @@ function createCard(record) {
     setStatus('Удаляю шрифт…', 'busy');
     await deleteLibraryFont(record.id);
     const storedFace = state.faces.get(record.id);
-    if (storedFace) { try { document.fonts.delete(storedFace.face); } catch {} state.faces.delete(record.id); }
+    if (storedFace) {
+      try { document.fonts.delete(storedFace.face); } catch {}
+      state.faces.delete(record.id);
+    }
     await reload();
   });
   actions.append(open, remove);
@@ -189,11 +208,18 @@ function updatePreviewText() {
   });
 }
 
+function cleanupUnusedFaces() {
+  const ids = new Set(state.fonts.map(item => item.id));
+  for (const [id, stored] of state.faces) {
+    if (ids.has(id)) continue;
+    try { document.fonts.delete(stored.face); } catch {}
+    state.faces.delete(id);
+  }
+}
+
 async function updateStats() {
   const stats = await getFontLibraryStats();
-  byId('libraryCount').textContent = stats.count
-    ? `${stats.count} ${stats.count === 1 ? 'шрифт' : stats.count < 5 ? 'шрифта' : 'шрифтов'}`
-    : 'Библиотека пуста';
+  byId('libraryCount').textContent = stats.count ? fontCountLabel(stats.count) : 'Библиотека пуста';
   const parts = [`Файлы библиотеки: ${formatLibraryBytes(stats.libraryBytes)}`];
   if (stats.usage != null && stats.quota != null) parts.push(`браузер использует ${formatLibraryBytes(stats.usage)} из ${formatLibraryBytes(stats.quota)}`);
   if (stats.persistent) parts.push('защита от автоочистки включена');
@@ -203,20 +229,34 @@ async function updateStats() {
 }
 
 async function reload() {
-  if (state.rendering) return;
+  if (state.rendering) {
+    state.reloadQueued = true;
+    return state.reloadPromise;
+  }
   state.rendering = true;
-  setStatus('Обновляю библиотеку…', 'busy');
+  state.reloadPromise = (async () => {
+    setStatus('Обновляю библиотеку…', 'busy');
+    try {
+      state.fonts = await listLibraryFonts();
+      cleanupUnusedFaces();
+      render();
+      await updateStats();
+      setStatus(state.fonts.length ? 'Библиотека готова.' : 'Добавьте первый шрифт из редактора.', 'ok');
+    } catch (error) {
+      console.error(error);
+      byId('libraryGrid').replaceChildren(element('div', 'card library-empty', error.message || 'Не удалось открыть библиотеку.'));
+      setStatus(error.message || 'Не удалось открыть библиотеку.', 'error');
+    }
+  })();
   try {
-    state.fonts = await listLibraryFonts();
-    render();
-    await updateStats();
-    setStatus(state.fonts.length ? 'Библиотека готова.' : 'Добавьте первый шрифт из редактора.', 'ok');
-  } catch (error) {
-    console.error(error);
-    byId('libraryGrid').replaceChildren(element('div', 'card library-empty', error.message || 'Не удалось открыть библиотеку.'));
-    setStatus(error.message || 'Не удалось открыть библиотеку.', 'error');
+    return await state.reloadPromise;
   } finally {
     state.rendering = false;
+    state.reloadPromise = null;
+    if (state.reloadQueued) {
+      state.reloadQueued = false;
+      queueMicrotask(() => reload());
+    }
   }
 }
 
@@ -231,10 +271,13 @@ byId('libraryPersist').addEventListener('click', async () => {
 });
 
 try {
-  const channel = new BroadcastChannel('draw-your-font-library');
-  channel.addEventListener('message', event => { if (event.data?.type === 'updated') reload(); });
+  state.channel = new BroadcastChannel('draw-your-font-library');
+  state.channel.addEventListener('message', event => { if (event.data?.type === 'updated') reload(); });
 } catch {}
 
 window.addEventListener('storage', event => { if (event.key === 'dyfr:library-updated') reload(); });
-window.__drawYourFontLibraryPage = { reload, getState: () => ({ fonts: state.fonts, loadedFaces: state.faces.size }) };
+window.__drawYourFontLibraryPage = {
+  reload,
+  getState: () => ({ fonts: state.fonts, loadedFaces: state.faces.size, rendering: state.rendering }),
+};
 reload();
