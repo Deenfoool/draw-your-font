@@ -5,7 +5,8 @@ import { join, resolve } from 'node:path';
 import { createDrawYourFontServer } from '../server.mjs';
 
 const dataDir = await mkdtemp(join(tmpdir(), 'dyfr-public-library-'));
-const server = createDrawYourFontServer({ rootDir: resolve('.'), dataDir });
+const adminToken = 'integration-admin-token-that-is-not-public';
+const server = createDrawYourFontServer({ rootDir: resolve('.'), dataDir, adminToken, maxPublicFonts: 1, maxPublicBytes: 10 * 1024 * 1024 });
 await new Promise((resolveListen, reject) => {
   server.once('error', reject);
   server.listen(0, '127.0.0.1', resolveListen);
@@ -21,18 +22,10 @@ const files = {
   zip: encode([0x50, 0x4b, 0x03, 0x04, 0, 0, 0, 0]),
 };
 const publication = {
-  familyName: 'Общий тестовый шрифт',
-  styleName: 'Regular',
-  authorName: 'Денис',
-  description: 'Проверка серверного каталога.',
-  license: 'OFL-1.1',
-  rightsConfirmed: true,
-  mode: 'connected',
-  glyphCount: 88,
-  sampleText: 'Дрожь, щука, цифра.',
-  featureSettings: '"rlig" 1, "calt" 1, "curs" 1',
-  baseName: 'public-test',
-  files,
+  familyName: 'Общий тестовый шрифт', styleName: 'Regular', authorName: 'Денис',
+  description: 'Проверка серверного каталога.', license: 'OFL-1.1', rightsConfirmed: true,
+  mode: 'connected', glyphCount: 88, sampleText: 'Дрожь, щука, цифра.',
+  featureSettings: '"rlig" 1, "calt" 1, "curs" 1', baseName: 'public-test', files,
 };
 
 async function request(path, options = {}) {
@@ -45,6 +38,12 @@ try {
   const health = await request('/api/health');
   assert.equal(health.response.status, 200);
   assert.equal(health.body.ok, true);
+
+  const crossOrigin = await request('/api/public-fonts', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'https://attacker.example' },
+    body: JSON.stringify(publication),
+  });
+  assert.equal(crossOrigin.response.status, 403);
 
   const denied = await request('/api/public-fonts', {
     method: 'POST', headers: { 'Content-Type': 'application/json', Origin: origin },
@@ -62,6 +61,12 @@ try {
   assert.equal(created.body.font.ownerHash, undefined);
   const id = created.body.font.id;
   const token = created.body.ownerToken;
+
+  const quota = await request('/api/public-fonts', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Origin: origin },
+    body: JSON.stringify({ ...publication, familyName: 'Второй шрифт' }),
+  });
+  assert.equal(quota.response.status, 507);
 
   const listed = await request('/api/public-fonts?q=Денис');
   assert.equal(listed.response.status, 200);
@@ -93,15 +98,17 @@ try {
   });
   assert.equal(forbiddenDelete.response.status, 403);
 
-  const removed = await request(`/api/public-fonts/${id}`, {
-    method: 'DELETE', headers: { Origin: origin, Authorization: `Bearer ${token}` },
+  const removedByAdmin = await request(`/api/public-fonts/${id}`, {
+    method: 'DELETE', headers: { Origin: origin, Authorization: `Bearer ${adminToken}` },
   });
-  assert.equal(removed.response.status, 204);
+  assert.equal(removedByAdmin.response.status, 204);
 
   const empty = await request('/api/public-fonts');
   assert.equal(empty.body.count, 0);
-  const privatePath = await fetch(`${origin}/data/public-fonts/secret`);
-  assert.equal(privatePath.status, 404);
+  for (const path of ['/data/public-fonts/secret', '/server.mjs', '/.env.example', '/node_modules/example', '/tests/example']) {
+    const privatePath = await fetch(`${origin}${path}`);
+    assert.equal(privatePath.status, 404, `${path} must remain private`);
+  }
   console.log('Public library server API test: PASS');
 } finally {
   await new Promise(resolveClose => server.close(resolveClose));
