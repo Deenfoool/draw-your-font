@@ -107,9 +107,15 @@ async function withStore(mode, operation) {
     const transaction = database.transaction(STORE_NAME, mode);
     const completed = transactionDone(transaction);
     const store = transaction.objectStore(STORE_NAME);
-    const result = await operation(store, transaction);
-    await completed;
-    return result;
+    try {
+      const result = await operation(store, transaction);
+      await completed;
+      return result;
+    } catch (error) {
+      try { transaction.abort(); } catch {}
+      try { await completed; } catch {}
+      throw error;
+    }
   } finally {
     database.close();
   }
