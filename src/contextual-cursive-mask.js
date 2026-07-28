@@ -1,5 +1,6 @@
 import { getCursiveGlyphMetrics } from './cursive-font-v3.js';
 import { resolveConnectionRatio } from './russian-joining.js';
+import { buildRussianEntryPath, normalizeRussianEntryMode } from './russian-entry-paths.js';
 
 const FORM_SUFFIX = Object.freeze({ upper: 'u', middle: 'm', lower: 'l', special: 's' });
 const SUFFIX_CLASS = Object.freeze(Object.fromEntries(Object.entries(FORM_SUFFIX).map(([key, value]) => [value, key])));
@@ -31,6 +32,12 @@ function drawQuadratic(mask, width, height, start, control, end, radius) {
       mt * mt * start.x + 2 * mt * t * control.x + t * t * end.x,
       mt * mt * start.y + 2 * mt * t * control.y + t * t * end.y,
       radius);
+  }
+}
+
+function drawEntryPath(mask, width, height, path, radius) {
+  for (const segment of path.segments) {
+    if (segment.type === 'quadratic') drawQuadratic(mask, width, height, segment.start, segment.control, segment.end, radius);
   }
 }
 
@@ -95,13 +102,16 @@ export function generateRussianContextualFormMask(glyph, form = 'isol', cursive 
     y: clamp(selectedExit.y ?? glyphConfig.exit?.y ?? rightExternalRatio, 0, 1) * sourceLast,
   };
 
+  const entryMode = normalizeRussianEntryMode(glyphConfig.entryMode, 'standard');
+  const entryPath = addLeft ? buildRussianEntryPath(entryMode, { x: 0, y: leftExternalY }, entry, {
+    glyphWidth: glyph.width,
+    xHeightY: remapped.xHeightY,
+    baselineY: remapped.baselineY,
+    smoothness: smooth,
+  }) : { mode: entryMode, segments: [], retracePoint: null };
+
   if (addLeft) {
-    const start = { x: 0, y: leftExternalY };
-    const control = {
-      x: entry.x * (0.32 + smooth * 0.34),
-      y: leftExternalY * (1 - smooth) + entry.y * smooth,
-    };
-    drawQuadratic(mask, width, height, start, control, entry, radius);
+    drawEntryPath(mask, width, height, entryPath, radius);
     drawDisk(mask, width, height, 0, leftExternalY, radius);
   }
   if (addRight) {
@@ -123,6 +133,9 @@ export function generateRussianContextualFormMask(glyph, form = 'isol', cursive 
     rightExternalY,
     entry,
     exit,
+    entryMode: entryPath.mode,
+    entryPath,
+    retracePoint: entryPath.retracePoint,
     leftPad,
     rightPad,
     targetClass,
