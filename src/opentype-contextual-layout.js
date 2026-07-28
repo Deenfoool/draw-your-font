@@ -130,6 +130,8 @@ export function buildRussianContextualGsub(layout) {
   }
 
   for (const [pairKey, override] of Object.entries(layout.pairOverrides || {})) {
+    const hasJoiningOverride = override?.connect === false || JOINING_TARGET_CLASSES.includes(override?.exitClass);
+    if (!hasJoiningOverride) continue;
     const [leftCharacter, rightCharacter] = pairKey.split('|');
     const leftForms = formsByCharacter[leftCharacter];
     const rightForms = formsByCharacter[rightCharacter];
