@@ -9,16 +9,78 @@ import {
   parseSfntDirectory,
   validateCursiveTrueType as validateCoreCursiveFont,
 } from './cursive-font-v3.js';
+import {
+  createDefaultExitVariants,
+  getRussianEntryClass,
+  getRussianEntryMode,
+  JOINING_CLASSES,
+  JOINING_GRAMMAR_VERSION,
+  JOINING_PRESET,
+  JOINING_TARGET_CLASSES,
+  normalizeJoiningClass,
+  resolveConnectionRatio,
+  resolveJoiningSequence,
+  RUSSIAN_LOWERCASE,
+  RUSSIAN_SCHOOL_ENTRY_CLASS,
+  sanitizePairOverrides,
+  validateRussianSchoolPreset,
+} from './russian-joining.js';
 
-export { DESCENDER_LETTERS, FORM_NAMES, getCursiveGlyphMetrics, parseSfntDirectory };
+export {
+  DESCENDER_LETTERS,
+  FORM_NAMES,
+  getCursiveGlyphMetrics,
+  parseSfntDirectory,
+  createDefaultExitVariants,
+  getRussianEntryClass,
+  getRussianEntryMode,
+  JOINING_CLASSES,
+  JOINING_GRAMMAR_VERSION,
+  JOINING_PRESET,
+  JOINING_TARGET_CLASSES,
+  normalizeJoiningClass,
+  resolveConnectionRatio,
+  resolveJoiningSequence,
+  RUSSIAN_LOWERCASE,
+  RUSSIAN_SCHOOL_ENTRY_CLASS,
+  sanitizePairOverrides,
+  validateRussianSchoolPreset,
+};
 
 function clamp(value, min, max) { return Math.min(max, Math.max(min, Number(value))); }
 
-function sanitizeCursiveAnchors(project) {
+function cloneExitVariants(value = {}) {
+  return Object.fromEntries(JOINING_TARGET_CLASSES.map((joiningClass) => {
+    const point = value?.[joiningClass];
+    if (!point || !Number.isFinite(Number(point.x)) || !Number.isFinite(Number(point.y))) return [joiningClass, {}];
+    return [joiningClass, { x: Number(point.x), y: Number(point.y) }];
+  }));
+}
+
+function captureJoiningState(cursive = {}) {
+  return {
+    joiningVersion: Number(cursive.joiningVersion) || JOINING_GRAMMAR_VERSION,
+    joiningPreset: typeof cursive.joiningPreset === 'string' && cursive.joiningPreset ? cursive.joiningPreset : JOINING_PRESET,
+    pairOverrides: sanitizePairOverrides(cursive.pairOverrides || {}),
+    glyphs: Object.fromEntries(Object.entries(cursive.glyphs || {}).map(([char, config]) => [char, {
+      entryClass: config?.entryClass,
+      entryMode: config?.entryMode,
+      exitVariants: cloneExitVariants(config?.exitVariants),
+    }])),
+  };
+}
+
+function sanitizeCursiveAnchors(project, preservedJoiningState = null) {
+  const joiningState = preservedJoiningState || captureJoiningState(project?.cursive || {});
   const cursive = ensureCoreCursiveProject(project);
+  cursive.joiningVersion = Math.max(JOINING_GRAMMAR_VERSION, Number(joiningState.joiningVersion) || 0);
+  cursive.joiningPreset = joiningState.joiningPreset || JOINING_PRESET;
+  cursive.pairOverrides = sanitizePairOverrides(joiningState.pairOverrides || {});
+
   for (const glyph of project.glyphs || []) {
     const config = cursive.glyphs?.[glyph.char];
     if (!config) continue;
+    const saved = joiningState.glyphs?.[glyph.char] || {};
     const metrics = getCursiveGlyphMetrics(glyph, config);
     const highestAllowedY = Math.max(0, metrics.baselineRatio - 0.01);
     const fallbackY = clamp(cursive.connectionY, metrics.xHeightRatio, highestAllowedY);
@@ -30,6 +92,13 @@ function sanitizeCursiveAnchors(project) {
       x: clamp(config.exit?.x ?? 0.92, 0, 1),
       y: clamp(config.exit?.y ?? fallbackY, 0, highestAllowedY),
     };
+    config.entryClass = getRussianEntryClass(glyph.char, saved.entryClass ? { entryClass: saved.entryClass } : config);
+    config.entryMode = getRussianEntryMode(glyph.char, saved.entryMode ? { entryMode: saved.entryMode } : config);
+    const variants = createDefaultExitVariants(metrics, config.exit, saved.exitVariants || {});
+    config.exitVariants = Object.fromEntries(JOINING_TARGET_CLASSES.map((joiningClass) => [joiningClass, {
+      x: clamp(variants[joiningClass].x, 0, 1),
+      y: clamp(variants[joiningClass].y, metrics.xHeightRatio, highestAllowedY),
+    }]));
   }
   project.cursive = cursive;
   return cursive;
@@ -40,8 +109,9 @@ export function ensureCursiveProject(project) {
 }
 
 export function applyRussianDescenderPreset(project) {
+  const joiningState = captureJoiningState(project?.cursive || {});
   applyCoreRussianDescenderPreset(project);
-  return sanitizeCursiveAnchors(project);
+  return sanitizeCursiveAnchors(project, joiningState);
 }
 
 export function generateCursiveFormMask(glyph, form = 'isol', cursive, glyphConfig = {}) {
@@ -57,17 +127,7 @@ export function generateCursiveFormMask(glyph, form = 'isol', cursive, glyphConf
 
 export function simulateCursiveForms(text, project) {
   const cursive = sanitizeCursiveAnchors(project);
-  const chars = [...String(text || '').normalize('NFC')];
-  return chars.map((char, index) => {
-    const config = cursive.glyphs?.[char];
-    if (!config) return { char, form: 'isol', connectedLeft: false, connectedRight: false };
-    const previous = cursive.glyphs?.[chars[index - 1]];
-    const next = cursive.glyphs?.[chars[index + 1]];
-    const connectedLeft = Boolean(previous?.joinRight && config.joinLeft);
-    const connectedRight = Boolean(config.joinRight && next?.joinLeft);
-    const form = connectedLeft && connectedRight ? 'medi' : connectedRight ? 'init' : connectedLeft ? 'fina' : 'isol';
-    return { char, form, connectedLeft, connectedRight };
-  });
+  return resolveJoiningSequence(text, cursive.glyphs, { pairOverrides: cursive.pairOverrides });
 }
 
 function align4(value) { return (value + 3) & ~3; }
@@ -148,9 +208,12 @@ export function readCursiveFeatureLookups(ttfBytes) {
 }
 
 export function buildCursiveTrueTypeFont(project, options = {}) {
-  sanitizeCursiveAnchors(project);
+  const cursive = sanitizeCursiveAnchors(project);
+  const joiningState = captureJoiningState(cursive);
   const built = buildCoreCursiveFont(project, options);
+  const restored = sanitizeCursiveAnchors(project, joiningState);
   built.ttf = restrictCursiveFeatureLookups(built.ttf);
+  built.layout.joining = captureJoiningState(restored);
   return built;
 }
 
