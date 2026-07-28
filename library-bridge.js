@@ -61,6 +61,8 @@ function installLibraryControls() {
 function getCurrentBuild() {
   const project = currentProject();
   if (!project) return null;
+  const downloadTtf = byId('downloadTtf');
+  if (downloadTtf?.disabled) return null;
   const connectedEnabled = Boolean(project.cursive?.enabled);
   const connected = window.__drawYourFontCursive?.getState?.().outputs || null;
   const standard = window.__drawYourFontBuilder?.getState?.().outputs || null;
