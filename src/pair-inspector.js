@@ -118,7 +118,7 @@ export function inspectRussianPair(project, leftCharacter, rightCharacter, optio
   const baseline = Math.max(leftGenerated.baselineY, rightGenerated.baselineY);
   const leftOffsetY = baseline - leftGenerated.baselineY;
   const rightOffsetY = baseline - rightGenerated.baselineY;
-  const spacing = clamp(sequence[0].pairOverride?.spacing ?? 0, -40, 80);
+  const spacing = Math.round(clamp(sequence[0].pairOverride?.spacing ?? 0, -40, 80));
   const rightX = leftGenerated.width - 1 + spacing;
   const leftSeamY = leftGenerated.rightExternalY + leftOffsetY;
   const rightSeamY = rightGenerated.leftExternalY + rightOffsetY;
