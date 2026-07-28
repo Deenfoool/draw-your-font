@@ -92,18 +92,21 @@ with tempfile.TemporaryDirectory(prefix='dyfr-cursive-ui-') as temp:
                 return {id:`g-${char}`,char,width,height,mask:btoa(binary),guides:{capY:8,xHeightY:25,baselineY:59,descenderY:73},metrics:{leftSideBearing:42,rightSideBearing:42,scale:1,offsetX:0,offsetY:0,advanceWidth:null},quality:{inkCount:mask.reduce((a,b)=>a+b,0),areaRatio:.1,bbox:{x0:8,y0:20,x1:47,y1:74,width:40,height:55},warnings:[]},source:{type:'test'}};
               };
               const now=new Date().toISOString();
-              const chars=['м','а','т','д','р','у','ф','щ','ц','о','ж','ь','А'];
+              const chars=['м','а','т','д','р','у','ф','щ','ц','о','ж','ь','с','е','и','А'];
               const project={format:'draw-your-font-project',version:4,id:'cursive-browser-test',title:'Cursive Browser Test',createdAt:now,updatedAt:now,glyphs:chars.map((char,index)=>makeGlyph(char,(index%3)-1)),kerning:{'А|А':-40},font:{familyName:'Cursive Browser Test',styleName:'Regular',unitsPerEm:1000,ascent:800,descent:-200,lineGap:120},template:null,sourceFiles:[]};
               window.__drawYourFontProject.importProject(JSON.stringify(project));
-              await waitFor(() => document.querySelector('#cursiveCharacter')?.options.length >= 12);
+              await waitFor(() => document.querySelector('#cursiveCharacter')?.options.length >= 15);
               const enabled=document.querySelector('#cursiveEnabled');if(!enabled.checked) enabled.click();
               document.querySelector('#cursiveDescenderPreset').click();
               document.querySelector('#cursiveCharacter').value='р';document.querySelector('#cursiveCharacter').dispatchEvent(new Event('change',{bubbles:true}));
               if(!document.querySelector('#cursiveHasDescender').checked) throw new Error('р is not marked as descender');
               document.querySelector('#cursiveDescenderScale').value='140';document.querySelector('#cursiveDescenderScale').dispatchEvent(new Event('input',{bubbles:true}));
               document.querySelector('#cursivePreviewText').value='дрожь';document.querySelector('#cursivePreviewText').dispatchEvent(new Event('input',{bubbles:true}));
-              const simulated=window.__drawYourFontCursive.simulate('дрожь').map(item=>item.form);
-              if(JSON.stringify(simulated)!==JSON.stringify(['init','medi','medi','medi','fina'])) throw new Error(`Bad simulation ${simulated}`);
+              const simulation=window.__drawYourFontCursive.simulate('дрожь');
+              const forms=simulation.map(item=>item.form);
+              const contextual=simulation.map(item=>item.contextualForm);
+              if(JSON.stringify(forms)!==JSON.stringify(['init','medi','medi','medi','fina'])) throw new Error(`Bad base simulation ${forms}`);
+              if(JSON.stringify(contextual)!==JSON.stringify(['init.u','medi.l','medi.m','medi.u','fina'])) throw new Error(`Bad contextual simulation ${contextual}`);
               document.querySelector('#fontBuild').click();
               await waitFor(() => ['ok','error'].includes(document.querySelector('#fontStatus').dataset.mode), 120000);
               const status=document.querySelector('#fontStatus');
@@ -111,20 +114,26 @@ with tempfile.TemporaryDirectory(prefix='dyfr-cursive-ui-') as temp:
               const state=window.__drawYourFontCursive.getState();
               if(!state.outputs?.ttf || !state.outputs?.woff2) throw new Error('Connected outputs missing');
               if(!state.outputs.built.tables.includes('GSUB') || !state.outputs.built.tables.includes('GPOS')) throw new Error('GSUB or GPOS missing');
+              if(state.outputs.built.layout.engine!=='russian-school-contextual-v1') throw new Error(`Wrong joining engine ${state.outputs.built.layout.engine}`);
+              if(state.outputs.built.layout.featureLookups.length!==9) throw new Error(`Wrong contextual lookup count ${state.outputs.built.layout.featureLookups}`);
               const rVertical=state.outputs.built.layout.vertical['р'];
               if(!rVertical?.hasDescender || rVertical.yMin>=-80) throw new Error(`Bad р descender ${JSON.stringify(rVertical)}`);
               if(state.outputs.built.layout.metrics.descent>=-200) throw new Error(`Font descent did not expand ${JSON.stringify(state.outputs.built.layout.metrics)}`);
               const signature=String.fromCharCode(...state.outputs.ttf.slice(0,4));
               const woff2=String.fromCharCode(...state.outputs.woff2.slice(0,4));
               const preview=document.querySelector('#fontPreview');
-              return {forms:simulated,ttf:state.outputs.ttf.length,woff2:state.outputs.woff2.length,signature,woff2Signature:woff2,featureSettings:preview.style.fontFeatureSettings,canvasCount:document.querySelectorAll('#cursiveForms canvas').length,status:status.textContent,tables:state.outputs.built.tables,vertical:rVertical,metrics:state.outputs.built.layout.metrics,controls:{baseline:!!document.querySelector('#cursiveBaseline'),descender:!!document.querySelector('#cursiveDescenderScale'),preset:!!document.querySelector('#cursiveDescenderPreset')}};
+              return {forms,contextual,ttf:state.outputs.ttf.length,woff2:state.outputs.woff2.length,signature,woff2Signature:woff2,featureSettings:preview.style.fontFeatureSettings,canvasCount:document.querySelectorAll('#cursiveForms canvas').length,status:status.textContent,tables:state.outputs.built.tables,engine:state.outputs.built.layout.engine,featureLookups:state.outputs.built.layout.featureLookups,vertical:rVertical,metrics:state.outputs.built.layout.metrics,controls:{baseline:!!document.querySelector('#cursiveBaseline'),descender:!!document.querySelector('#cursiveDescenderScale'),preset:!!document.querySelector('#cursiveDescenderPreset')}};
             })()''')
             if result['forms'] != ['init', 'medi', 'medi', 'medi', 'fina']:
-                raise RuntimeError(f'Wrong forms: {result}')
+                raise RuntimeError(f'Wrong base forms: {result}')
+            if result['contextual'] != ['init.u', 'medi.l', 'medi.m', 'medi.u', 'fina']:
+                raise RuntimeError(f'Wrong contextual forms: {result}')
             if result['signature'] != '\x00\x01\x00\x00' or result['woff2Signature'] != 'wOF2':
                 raise RuntimeError(f'Wrong font signatures: {result}')
-            if result['canvasCount'] != 4 or 'calt' not in result['featureSettings'] or 'curs' not in result['featureSettings']:
+            if result['canvasCount'] != 10 or 'calt' not in result['featureSettings'] or 'curs' not in result['featureSettings']:
                 raise RuntimeError(f'Cursive UI incomplete: {result}')
+            if result['engine'] != 'russian-school-contextual-v1' or len(result['featureLookups']) != 9:
+                raise RuntimeError(f'Contextual joining engine incomplete: {result}')
             if 'GSUB' not in result['tables'] or 'GPOS' not in result['tables']:
                 raise RuntimeError(f'OpenType tables missing: {result}')
             if not all(result['controls'].values()) or result['vertical']['yMin'] >= -80 or result['metrics']['descent'] >= -200:
