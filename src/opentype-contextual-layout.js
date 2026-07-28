@@ -28,7 +28,7 @@ function checksum(value) {
   return sum;
 }
 function coverage(ids) {
-  const sorted = [...new Set(ids)].sort((left, right) => left - right);
+  const sorted = [...new Set(ids)].filter(Number.isInteger).sort((left, right) => left - right);
   return concat([be16(1), be16(sorted.length), ...sorted.map(be16)]);
 }
 
@@ -94,15 +94,33 @@ function featureList(features) {
   return concat([be16(features.length), ...records, ...tables]);
 }
 
+function joiningLookaheadIds(forms = {}) {
+  return [
+    forms.isol,
+    forms.blocked,
+    ...Object.values(forms.init || {}),
+  ].filter(Number.isInteger);
+}
+
+function addContextualSubstitution(lookups, featureLookups, mapping, context) {
+  if (!mapping.size) return;
+  const substitutionIndex = lookups.length;
+  lookups.push(lookup(1, singleSubstitution(mapping)));
+  const contextIndex = lookups.length;
+  lookups.push(lookup(6, chainContext({ ...context, lookupIndex: substitutionIndex })));
+  featureLookups.push(contextIndex);
+}
+
 export function buildRussianContextualGsub(layout) {
   const lookups = [];
   const featureLookups = [];
   const connectedPrevious = [];
   const leftBaseByClass = Object.fromEntries(JOINING_TARGET_CLASSES.map((joiningClass) => [joiningClass, []]));
+  const formsByCharacter = layout.contextualForms || {};
 
-  for (const [character, forms] of Object.entries(layout.contextualForms || {})) {
+  for (const [character, forms] of Object.entries(formsByCharacter)) {
     const config = layout.contextualConfig?.[character] || {};
-    if (config.joinLeft && leftBaseByClass[config.entryClass]) leftBaseByClass[config.entryClass].push(forms.isol);
+    if (config.joinLeft && leftBaseByClass[config.entryClass]) leftBaseByClass[config.entryClass].push(...joiningLookaheadIds(forms));
     for (const joiningClass of JOINING_TARGET_CLASSES) {
       const initial = forms.init?.[joiningClass];
       const medial = forms.medi?.[joiningClass];
@@ -111,52 +129,67 @@ export function buildRussianContextualGsub(layout) {
     }
   }
 
+  for (const [pairKey, override] of Object.entries(layout.pairOverrides || {})) {
+    const [leftCharacter, rightCharacter] = pairKey.split('|');
+    const leftForms = formsByCharacter[leftCharacter];
+    const rightForms = formsByCharacter[rightCharacter];
+    const rightConfig = layout.contextualConfig?.[rightCharacter] || {};
+    if (!leftForms || !rightForms || !Number.isInteger(leftForms.isol)) continue;
+    const rightLookahead = joiningLookaheadIds(rightForms);
+    if (!rightLookahead.length) continue;
+    let target = null;
+    if (override?.connect === false) target = leftForms.blocked;
+    else {
+      const joiningClass = JOINING_TARGET_CLASSES.includes(override?.exitClass) ? override.exitClass : rightConfig.entryClass;
+      target = leftForms.init?.[joiningClass];
+    }
+    if (!Number.isInteger(target) || target === leftForms.isol) continue;
+    addContextualSubstitution(
+      lookups,
+      featureLookups,
+      new Map([[leftForms.isol, target]]),
+      { input: [[leftForms.isol]], lookahead: [rightLookahead] },
+    );
+  }
+
   for (const joiningClass of JOINING_TARGET_CLASSES) {
     const mapping = new Map();
     const input = [];
-    for (const forms of Object.values(layout.contextualForms || {})) {
+    for (const forms of Object.values(formsByCharacter)) {
       if (!Number.isInteger(forms.init?.[joiningClass])) continue;
       mapping.set(forms.isol, forms.init[joiningClass]);
       input.push(forms.isol);
     }
     const lookahead = leftBaseByClass[joiningClass];
     if (!mapping.size || !lookahead.length) continue;
-    const substitutionIndex = lookups.length;
-    lookups.push(lookup(1, singleSubstitution(mapping)));
-    const contextIndex = lookups.length;
-    lookups.push(lookup(6, chainContext({ input: [input], lookahead: [lookahead], lookupIndex: substitutionIndex })));
-    featureLookups.push(contextIndex);
+    addContextualSubstitution(lookups, featureLookups, mapping, { input: [input], lookahead: [lookahead] });
   }
 
   for (const joiningClass of JOINING_TARGET_CLASSES) {
     const mapping = new Map();
     const input = [];
-    for (const forms of Object.values(layout.contextualForms || {})) {
+    for (const forms of Object.values(formsByCharacter)) {
       if (!Number.isInteger(forms.init?.[joiningClass]) || !Number.isInteger(forms.medi?.[joiningClass])) continue;
       mapping.set(forms.init[joiningClass], forms.medi[joiningClass]);
       input.push(forms.init[joiningClass]);
     }
     if (!mapping.size || !connectedPrevious.length) continue;
-    const substitutionIndex = lookups.length;
-    lookups.push(lookup(1, singleSubstitution(mapping)));
-    const contextIndex = lookups.length;
-    lookups.push(lookup(6, chainContext({ backtrack: [connectedPrevious], input: [input], lookupIndex: substitutionIndex })));
-    featureLookups.push(contextIndex);
+    addContextualSubstitution(lookups, featureLookups, mapping, { backtrack: [connectedPrevious], input: [input] });
   }
 
   const finalMapping = new Map();
   const finalInput = [];
-  for (const forms of Object.values(layout.contextualForms || {})) {
+  for (const forms of Object.values(formsByCharacter)) {
     if (!Number.isInteger(forms.fina)) continue;
     finalMapping.set(forms.isol, forms.fina);
     finalInput.push(forms.isol);
+    if (Number.isInteger(forms.blocked)) {
+      finalMapping.set(forms.blocked, forms.fina);
+      finalInput.push(forms.blocked);
+    }
   }
   if (finalMapping.size && connectedPrevious.length) {
-    const substitutionIndex = lookups.length;
-    lookups.push(lookup(1, singleSubstitution(finalMapping)));
-    const contextIndex = lookups.length;
-    lookups.push(lookup(6, chainContext({ backtrack: [connectedPrevious], input: [finalInput], lookupIndex: substitutionIndex })));
-    featureLookups.push(contextIndex);
+    addContextualSubstitution(lookups, featureLookups, finalMapping, { backtrack: [connectedPrevious], input: [finalInput] });
   }
 
   if (!featureLookups.length) throw new Error('Недостаточно соединяемых букв для построения контекстной GSUB.');
@@ -214,17 +247,67 @@ function buildCursiveSubtable(glyphs) {
   ]);
 }
 
-export function buildRussianCursiveGpos(glyphs) {
-  const scripts = scriptList([0]);
-  const features = featureList([{ tag: 'curs', lookups: [0] }]);
-  const list = lookupList([lookup(3, buildCursiveSubtable(glyphs))]);
+function normalizePairAdjustments(pairs = []) {
+  const grouped = new Map();
+  for (const pair of pairs) {
+    const first = Number(pair?.first);
+    const second = Number(pair?.second);
+    const xAdvance = Math.max(-32768, Math.min(32767, Math.round(Number(pair?.xAdvance) || 0)));
+    if (!Number.isInteger(first) || !Number.isInteger(second) || !xAdvance) continue;
+    if (!grouped.has(first)) grouped.set(first, new Map());
+    grouped.get(first).set(second, xAdvance);
+  }
+  return [...grouped.entries()]
+    .sort((left, right) => left[0] - right[0])
+    .map(([first, seconds]) => ({
+      first,
+      seconds: [...seconds.entries()].sort((left, right) => left[0] - right[0]),
+    }));
+}
+
+function buildPairPositionSubtable(pairs) {
+  const groups = normalizePairAdjustments(pairs);
+  if (!groups.length) return null;
+  const pairSets = groups.map((group) => concat([
+    be16(group.seconds.length),
+    ...group.seconds.flatMap(([second, value]) => [be16(second), beS16(value)]),
+  ]));
+  const headerLength = 10 + groups.length * 2;
+  let pairOffset = headerLength;
+  const pairOffsets = pairSets.map((table) => { const current = pairOffset; pairOffset += table.length; return current; });
+  const covered = coverage(groups.map((group) => group.first));
+  const coverageOffset = pairOffset;
+  return concat([
+    be16(1),
+    be16(coverageOffset),
+    be16(0x0004),
+    be16(0),
+    be16(groups.length),
+    ...pairOffsets.map(be16),
+    ...pairSets,
+    covered,
+  ]);
+}
+
+export function buildRussianCursiveGpos(glyphs, pairAdjustments = []) {
+  const lookups = [lookup(3, buildCursiveSubtable(glyphs))];
+  const features = [{ tag: 'curs', lookups: [0] }];
+  const pairSubtable = buildPairPositionSubtable(pairAdjustments);
+  if (pairSubtable) {
+    lookups.push(lookup(2, pairSubtable));
+    features.push({ tag: 'kern', lookups: [1] });
+  }
+  const featureIndices = features.map((_, index) => index);
+  const scripts = scriptList(featureIndices);
+  const featureBytes = featureList(features);
+  const list = lookupList(lookups);
   const header = 10;
   return concat([
     be32(0x00010000),
     be16(header),
     be16(header + scripts.length),
-    be16(header + scripts.length + features.length),
-    scripts, features, list,
+    be16(header + scripts.length + featureBytes.length),
+    scripts, featureBytes, list,
   ]);
 }
 
