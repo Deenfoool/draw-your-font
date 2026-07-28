@@ -104,11 +104,13 @@ export function generateRussianContextualFormMask(glyph, form = 'isol', cursive 
 
   const entryMode = normalizeRussianEntryMode(glyphConfig.entryMode, 'standard');
   const entryPath = addLeft ? buildRussianEntryPath(entryMode, { x: 0, y: leftExternalY }, entry, {
+    character: glyph.char,
     glyphWidth: glyph.width,
     xHeightY: remapped.xHeightY,
     baselineY: remapped.baselineY,
     smoothness: smooth,
-  }) : { mode: entryMode, segments: [], retracePoint: null };
+    profile: glyphConfig.entryProfile,
+  }) : { mode: entryMode, character: glyph.char || '', profileKey: entryMode, profile: { id: entryMode }, segments: [], retracePoint: null };
 
   if (addLeft) {
     drawEntryPath(mask, width, height, entryPath, radius);
@@ -134,6 +136,7 @@ export function generateRussianContextualFormMask(glyph, form = 'isol', cursive 
     entry,
     exit,
     entryMode: entryPath.mode,
+    entryProfile: entryPath.profileKey,
     entryPath,
     retracePoint: entryPath.retracePoint,
     leftPad,
