@@ -1,0 +1,15 @@
+services:
+  draw-your-font:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      PORT: 8000
+      HOST: 0.0.0.0
+      DYFR_DATA_DIR: /data/public-fonts
+    volumes:
+      - draw-your-font-data:/data
+
+volumes:
+  draw-your-font-data:
