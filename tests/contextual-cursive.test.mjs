@@ -104,6 +104,13 @@ assert.deepEqual(lookups.calt, built.layout.featureLookups);
 assert.deepEqual(lookups.rlig, built.layout.featureLookups);
 assert.ok(lookups.calt.every((lookupIndex) => lookupIndex % 2 === 1));
 
+cursive.pairOverrides['м|о'] = { spacing: 6 };
+const spacingOnly = buildCursiveTrueTypeFont(project, { detail: 96, simplify: 0.4, glyphHeight: 700 });
+assert.deepEqual(validateCursiveTrueType(spacingOnly.ttf), []);
+assert.deepEqual(spacingOnly.layout.featureLookups, built.layout.featureLookups, 'Spacing-only override must not add GSUB rules.');
+assert.equal(spacingOnly.layout.pairAdjustments.length, 10);
+assert.ok(spacingOnly.layout.pairAdjustments.every((pair) => pair.pairKey === 'м|о' && pair.xAdvance !== 0));
+
 cursive.pairOverrides['м|о'] = { exitClass: 'upper', spacing: 6 };
 cursive.pairOverrides['е|с'] = { connect: false };
 const overridden = buildCursiveTrueTypeFont(project, { detail: 96, simplify: 0.4, glyphHeight: 700 });
