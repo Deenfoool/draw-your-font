@@ -25,9 +25,9 @@ test('Recognition Engine 2.0 renders deterministic confidence groups', async ({ 
   const panel = page.locator('#recognitionQualityPanel');
   await expect(panel).not.toHaveAttribute('hidden', '');
   await expect(panel).toContainText('Recognition Engine 2.0');
-  await expect(panel.locator('[data-level="high"]')).toContainText('1');
-  await expect(panel.locator('[data-level="medium"]')).toContainText('1');
-  await expect(panel.locator('[data-level="low"]')).toContainText('1');
+  await expect(panel.locator('.recognition-quality-stats [data-level="high"]')).toContainText('1');
+  await expect(panel.locator('.recognition-quality-stats [data-level="medium"]')).toContainText('1');
+  await expect(panel.locator('.recognition-quality-stats [data-level="low"]')).toContainText('1');
   await panel.locator('details').evaluate(element => { element.open = true; });
   await expect(panel.locator('.recognition-problem-list')).toContainText('ё');
   await expect(panel.locator('.recognition-problem-list')).toContainText('р');
