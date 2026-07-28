@@ -45,6 +45,14 @@ function renderSyntheticPage(plan, pageIndex, width = 1050, black = 0, white = 2
   return { gray, width, height };
 }
 
+function assertRecognitionV2(result) {
+  assert.equal(result.recognition?.version, 2);
+  assert.ok(Number.isInteger(result.recognition.confidence));
+  assert.equal(result.recognition.high + result.recognition.medium + result.recognition.low, result.glyphs.length);
+  assert.ok(result.glyphs.every(glyph => glyph.source?.recognitionVersion === 2));
+  assert.ok(result.glyphs.every(glyph => Number.isInteger(glyph.quality?.confidence)));
+}
+
 const plan = planTemplatePages(getTemplateCharset('ru-full'), { layoutId: 'balanced', charsetId: 'ru-full', title: 'Recovery Test' });
 
 {
@@ -66,6 +74,7 @@ const plan = planTemplatePages(getTemplateCharset('ru-full'), { layoutId: 'balan
   assert.equal(result.metadata.pageIndex, 0);
   assert.equal(result.glyphs[0].char, 'А');
   assert.notEqual(result.recovery.variant, 'original');
+  assertRecognitionV2(result);
 }
 
 {
@@ -83,12 +92,14 @@ const plan = planTemplatePages(getTemplateCharset('ru-full'), { layoutId: 'balan
   assert.equal(result.glyphs.length, 48);
   assert.equal(result.glyphs[0].char, 'А');
   assert.equal(result.recovery.manualCorners, true);
+  assertRecognitionV2(result);
 }
 
 {
   const info = getRecoveryDependencyInfo();
   assert.match(info.heicModuleUrl, /\/vendor\/heic-codec\.mjs$/);
   assert.doesNotMatch(info.heicModuleUrl, /\/src\/vendor\//);
+  assert.equal(info.recognitionVersion, 2);
 }
 
-console.log('All scan recovery tests passed.');
+console.log('All scan recovery tests passed with Recognition Engine 2.0.');
