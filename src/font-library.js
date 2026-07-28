@@ -31,7 +31,7 @@ export function copyArrayBuffer(value) {
 
 async function fileToArrayBuffer(value) {
   if (value == null) return null;
-  if (value instanceof Blob) return value.arrayBuffer();
+  if (typeof Blob !== 'undefined' && value instanceof Blob) return value.arrayBuffer();
   return copyArrayBuffer(value);
 }
 
@@ -105,9 +105,10 @@ async function withStore(mode, operation) {
   const database = await openFontLibrary();
   try {
     const transaction = database.transaction(STORE_NAME, mode);
+    const completed = transactionDone(transaction);
     const store = transaction.objectStore(STORE_NAME);
     const result = await operation(store, transaction);
-    await transactionDone(transaction);
+    await completed;
     return result;
   } finally {
     database.close();
@@ -145,22 +146,25 @@ export async function clearFontLibrary() {
 
 export async function getFontLibraryStats() {
   const fonts = await listLibraryFonts();
+  const storage = globalThis.navigator?.storage;
   let quota = null;
   let usage = null;
+  let persistent = false;
   try {
-    const estimate = await navigator.storage?.estimate?.();
+    const estimate = await storage?.estimate?.();
     quota = estimate?.quota ?? null;
     usage = estimate?.usage ?? null;
+    persistent = Boolean(await storage?.persisted?.());
   } catch {}
   return {
     count: fonts.length,
     libraryBytes: fonts.reduce((sum, item) => sum + (Number(item.totalBytes) || 0), 0),
     quota,
     usage,
-    persistent: await navigator.storage?.persisted?.().catch(() => false) || false,
+    persistent,
   };
 }
 
 export async function requestPersistentLibraryStorage() {
-  try { return Boolean(await navigator.storage?.persist?.()); } catch { return false; }
+  try { return Boolean(await globalThis.navigator?.storage?.persist?.()); } catch { return false; }
 }
