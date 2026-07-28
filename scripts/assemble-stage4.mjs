@@ -15,6 +15,7 @@ const targets = [
 const directSources = [
   'src/cursive-font-core.js',
   'src/cursive-font-v3.js',
+  'src/russian-joining.js',
   'src/cursive-font.js',
   'src/font-library.js',
   'src/public-library-client.js',
