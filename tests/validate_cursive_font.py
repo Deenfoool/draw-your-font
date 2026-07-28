@@ -159,7 +159,10 @@ actual_single = shape('а')
 if actual_single['glyphs'] != expected_single:
     raise RuntimeError(f'Одиночная форма неверна: {actual_single["glyphs"]}, ожидалось {expected_single}')
 
-space_id = font.getBestCmap().get(ord(' '))
+space_name = font.getBestCmap().get(ord(' '))
+if not space_name:
+    raise RuntimeError('В cmap отсутствует пробел')
+space_id = font.getGlyphID(space_name)
 expected_words = [forms['м']['init']['lower'], forms['а']['fina'], space_id, forms['м']['init']['lower'], forms['а']['fina']]
 actual_words = shape('ма ма')
 if actual_words['glyphs'] != expected_words:
