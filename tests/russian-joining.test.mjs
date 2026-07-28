@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import {
   applyRussianDescenderPreset,
+  connectionRatioToFontLevel,
   ensureCursiveProject,
   getRussianEntryClass,
   getRussianEntryMode,
   JOINING_GRAMMAR_VERSION,
   JOINING_PRESET,
   resolveConnectionRatio,
+  RUSSIAN_CONNECTION_LEVELS,
   RUSSIAN_LOWERCASE,
   RUSSIAN_SCHOOL_ENTRY_CLASS,
   simulateCursiveForms,
@@ -96,8 +98,16 @@ assert.equal(ensureCursiveProject(project).glyphs.е.entryClass, 'lower');
 assert.deepEqual(ensureCursiveProject(project).glyphs.е.exitVariants.upper, { x: 0.81, y: 0.44 });
 assert.equal(ensureCursiveProject(project).pairOverrides['м|о'].spacing, -12);
 
-const levels = ['upper', 'special', 'middle', 'lower'].map((joiningClass) => resolveConnectionRatio({ xHeightRatio: 0.38, baselineRatio: 0.82 }, joiningClass));
+const metricsA = { capRatio: 0.12, xHeightRatio: 0.38, baselineRatio: 0.82 };
+const metricsB = { capRatio: 0.08, xHeightRatio: 0.34, baselineRatio: 0.78 };
+const levels = ['upper', 'special', 'middle', 'lower'].map((joiningClass) => resolveConnectionRatio(metricsA, joiningClass));
 assert.ok(levels.every(Number.isFinite));
 assert.ok(levels[0] < levels[1] && levels[1] < levels[2] && levels[2] < levels[3]);
+for (const joiningClass of ['upper', 'special', 'middle', 'lower']) {
+  const fontLevelA = connectionRatioToFontLevel(metricsA, resolveConnectionRatio(metricsA, joiningClass));
+  const fontLevelB = connectionRatioToFontLevel(metricsB, resolveConnectionRatio(metricsB, joiningClass));
+  assert.ok(Math.abs(fontLevelA - RUSSIAN_CONNECTION_LEVELS[joiningClass]) < 1e-9);
+  assert.ok(Math.abs(fontLevelA - fontLevelB) < 1e-9, `${joiningClass} must not move the word baseline`);
+}
 
-console.log('Stage 11.1 Russian school joining grammar tests: PASS');
+console.log('Stage 11.1/11.2 Russian school joining grammar tests: PASS');
