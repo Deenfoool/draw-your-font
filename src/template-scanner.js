@@ -1,5 +1,6 @@
 import { A4_MM, getLayout, getTemplateCharset, planTemplatePages } from './template.js';
 import { MARKER_GRID, METADATA_COLUMNS, METADATA_MM, METADATA_ROWS, decodeMarkerMatrix, metadataFromMatrix } from './template-code.js';
+import { recognizeGlyphCell } from './recognition-v2.js';
 
 const PAGE_GEOMETRY = Object.freeze({ marginX: 10, marginTop: 10, marginBottom: 9, markerSize: 7 });
 
@@ -233,59 +234,6 @@ export function decodeRectifiedMetadata(gray, width, height) {
   return { ...metadataFromMatrix(matrix.map((row) => row.map((value) => value < threshold ? 1 : 0))), matrix, threshold };
 }
 
-function closeMask(mask, width, height) {
-  const dilated = new Uint8Array(mask.length);
-  for (let y = 0; y < height; y += 1) for (let x = 0; x < width; x += 1) {
-    let ink = 0;
-    for (let dy = -1; dy <= 1 && !ink; dy += 1) for (let dx = -1; dx <= 1; dx += 1) {
-      const nx = x + dx; const ny = y + dy;
-      if (nx >= 0 && ny >= 0 && nx < width && ny < height && mask[ny * width + nx]) { ink = 1; break; }
-    }
-    dilated[y * width + x] = ink;
-  }
-  const eroded = new Uint8Array(mask.length);
-  for (let y = 0; y < height; y += 1) for (let x = 0; x < width; x += 1) {
-    let all = 1;
-    for (let dy = -1; dy <= 1 && all; dy += 1) for (let dx = -1; dx <= 1; dx += 1) {
-      const nx = x + dx; const ny = y + dy;
-      if (nx < 0 || ny < 0 || nx >= width || ny >= height || !dilated[ny * width + nx]) { all = 0; break; }
-    }
-    eroded[y * width + x] = all;
-  }
-  return eroded;
-}
-
-function filterCellComponents(mask, width, height) {
-  const visited = new Uint8Array(mask.length); const out = new Uint8Array(mask.length);
-  const queue = new Int32Array(mask.length);
-  for (let start = 0; start < mask.length; start += 1) {
-    if (!mask[start] || visited[start]) continue;
-    let head = 0; let tail = 0; queue[tail++] = start; visited[start] = 1;
-    const pixels = []; let minX = width; let maxX = 0; let minY = height; let maxY = 0;
-    while (head < tail) {
-      const index = queue[head++]; pixels.push(index);
-      const x = index % width; const y = Math.floor(index / width);
-      minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y);
-      for (let dy = -1; dy <= 1; dy += 1) for (let dx = -1; dx <= 1; dx += 1) {
-        const nx = x + dx; const ny = y + dy;
-        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
-        const ni = ny * width + nx;
-        if (mask[ni] && !visited[ni]) { visited[ni] = 1; queue[tail++] = ni; }
-      }
-    }
-    const componentWidth = maxX - minX + 1; const componentHeight = maxY - minY + 1;
-    const isGuide = (componentWidth > width * 0.62 && componentHeight <= Math.max(3, height * 0.035)) || (componentHeight > height * 0.65 && componentWidth <= Math.max(3, width * 0.035));
-    const minimumArea = Math.max(2, Math.round(width * height * 0.00045));
-    if (!isGuide && pixels.length >= minimumArea) pixels.forEach((index) => { out[index] = 1; });
-  }
-  return out;
-}
-
-function percentile(values, p) {
-  const sorted = [...values].sort((a, b) => a - b);
-  return sorted[Math.min(sorted.length - 1, Math.max(0, Math.floor((sorted.length - 1) * p)))];
-}
-
 export function extractGlyphsFromRectified(rectified, page, options = {}) {
   const { gray, width, height } = rectified;
   const sx = width / A4_MM.width; const sy = height / A4_MM.height;
@@ -300,38 +248,37 @@ export function extractGlyphsFromRectified(rectified, page, options = {}) {
     const glyphWidth = Math.max(1, x1 - x0); const glyphHeight = Math.max(1, y1 - y0);
     const values = new Uint8Array(glyphWidth * glyphHeight);
     for (let y = 0; y < glyphHeight; y += 1) values.set(gray.slice((y0 + y) * width + x0, (y0 + y) * width + x1), y * glyphWidth);
-    const background = percentile(values, 0.82);
-    const threshold = clamp(background - Number(options.inkDelta ?? 34), 70, 205);
-    let mask = Uint8Array.from(values, (value) => value < threshold ? 1 : 0);
 
     const guideRows = [cell.capLine, cell.xHeightLine, cell.baseline, cell.descenderLine]
       .map((mm) => Math.round(mm * sy) - y0).filter((row) => row >= 0 && row < glyphHeight);
     const rowRadius = Math.max(1, Math.round(sy * 0.23));
-    for (const row of guideRows) for (let y = Math.max(0, row - rowRadius); y <= Math.min(glyphHeight - 1, row + rowRadius); y += 1) {
-      let run = 0;
-      for (let x = 0; x < glyphWidth; x += 1) run += mask[y * glyphWidth + x];
-      if (run > glyphWidth * 0.48) for (let x = 0; x < glyphWidth; x += 1) mask[y * glyphWidth + x] = 0;
-    }
     const center = Math.round(cell.centerX * sx) - x0;
     const columnRadius = Math.max(0, Math.round(sx * 0.12));
-    for (let x = Math.max(0, center - columnRadius); x <= Math.min(glyphWidth - 1, center + columnRadius); x += 1) {
-      let run = 0; for (let y = 0; y < glyphHeight; y += 1) run += mask[y * glyphWidth + x];
-      if (run > glyphHeight * 0.55) for (let y = 0; y < glyphHeight; y += 1) mask[y * glyphWidth + x] = 0;
-    }
-    mask = closeMask(filterCellComponents(mask, glyphWidth, glyphHeight), glyphWidth, glyphHeight);
-
-    let inkCount = 0; let minX = glyphWidth; let maxX = -1; let minY = glyphHeight; let maxY = -1;
-    for (let y = 0; y < glyphHeight; y += 1) for (let x = 0; x < glyphWidth; x += 1) if (mask[y * glyphWidth + x]) {
-      inkCount += 1; minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y);
-    }
-    const bbox = inkCount ? { x0: minX, y0: minY, x1: maxX, y1: maxY, width: maxX - minX + 1, height: maxY - minY + 1 } : null;
-    const areaRatio = inkCount / (glyphWidth * glyphHeight);
+    const baselineY = cell.baseline * sy - y0;
+    const xHeightY = cell.xHeightLine * sy - y0;
+    const recognition = recognizeGlyphCell(values, glyphWidth, glyphHeight, {
+      char: cell.char,
+      guideRows,
+      guideColumns: [center],
+      guideRowRadius: rowRadius,
+      guideColumnRadius: columnRadius,
+      knownGuideRowCoverage: Number(options.knownGuideRowCoverage ?? 0.42),
+      knownGuideColumnCoverage: Number(options.knownGuideColumnCoverage ?? 0.5),
+      thresholdDelta: Number(options.inkDelta ?? 34),
+      absoluteCap: Number(options.absoluteCap ?? 220),
+      backgroundRadius: Number(options.backgroundRadius ?? Math.max(4, Math.round(Math.min(glyphWidth, glyphHeight) / 8))),
+      mergeStrength: Number(options.mergeStrength ?? 70),
+      baselineY,
+      xHeightY,
+    });
+    const { mask, inkCount, bbox, areaRatio } = recognition;
     const warnings = [];
     if (!inkCount) warnings.push('Пустая ячейка');
     if (bbox && (bbox.x0 <= 1 || bbox.x1 >= glyphWidth - 2 || bbox.y0 <= 1 || bbox.y1 >= glyphHeight - 2)) warnings.push('Штрих касается края');
     if (bbox && bbox.height < glyphHeight * 0.18) warnings.push('Символ слишком маленький');
     if (bbox && bbox.height > glyphHeight * 0.94) warnings.push('Символ слишком высокий');
     if (areaRatio > 0.42) warnings.push('Слишком много чернил или тень');
+    for (const reason of recognition.confidence.reasons) if (!warnings.includes(reason)) warnings.push(reason);
     glyphs.push({
       id: `p${page.pageIndex + 1}-c${cell.index + 1}`,
       char: cell.char,
@@ -340,11 +287,25 @@ export function extractGlyphsFromRectified(rectified, page, options = {}) {
       mask,
       guides: {
         capY: cell.capLine * sy - y0,
-        xHeightY: cell.xHeightLine * sy - y0,
-        baselineY: cell.baseline * sy - y0,
+        xHeightY,
+        baselineY,
         descenderY: cell.descenderLine * sy - y0,
       },
-      quality: { inkCount, areaRatio, bbox, warnings, threshold, background },
+      quality: {
+        inkCount,
+        areaRatio,
+        bbox,
+        warnings,
+        threshold: recognition.threshold,
+        background: recognition.background,
+        confidence: recognition.confidence,
+        recognition: {
+          version: recognition.recognitionVersion,
+          method: recognition.method,
+          qualityScore: recognition.qualityScore,
+          candidates: recognition.candidates,
+        },
+      },
       source: { type: 'template', pageIndex: page.pageIndex, pageNumber: page.pageNumber, cellIndex: cell.index },
     });
   }
