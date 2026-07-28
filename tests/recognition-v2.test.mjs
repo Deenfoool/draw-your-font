@@ -106,7 +106,10 @@ for (const char of ['ё', 'й', 'д', 'р', 'у', 'ф', 'щ', 'ц']) {
   assert.equal(recognized.mask[28 * cell.width + 5], 0, `${char}: known horizontal guide should be removed`);
   assert.equal(recognized.mask[10 * cell.width + 48], 0, `${char}: known vertical guide should be removed`);
   if ('ёй'.includes(char)) assert.ok(!recognized.confidence.reasons.some(reason => reason.includes('Верхний знак')), `${char}: dots should survive`);
-  if ('дрцщуф'.includes(char)) assert.ok(!recognized.confidence.reasons.some(reason => reason.includes('Нижний элемент')), `${char}: descender should survive`);
+  if ('дрцщуф'.includes(char)) {
+    assert.ok(!recognized.confidence.reasons.some(reason => reason.includes('Нижний элемент')), `${char}: descender should survive`);
+    assert.equal(recognized.mask[100 * cell.width + 48], 1, `${char}: dark stroke aligned with the center guide should survive`);
+  }
 }
 
 // The machine-readable template path must call the same four-candidate engine.
