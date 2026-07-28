@@ -59,6 +59,7 @@ function vectorizeBaselineGlyph(source, character, options = {}, metadata = {}) 
     contours,
     advanceWidth: Math.max(120, Math.ceil(contentWidth + sideBearing + rightSideBearing)),
     leftSideBearing: sideBearing,
+    sourcePixelScaleX: sampleXScale * outlineScale,
   });
   vector.pixelToFont = (point) => ({
     x: sideBearing + point.x * sampleXScale * outlineScale,
@@ -80,12 +81,26 @@ function transformVector(vector, adjustment = {}) {
     ...vector,
     contours,
     advanceWidth: Math.max(120, Math.round(vector.advanceWidth * scale + dx)),
+    sourcePixelScaleX: Number(vector.sourcePixelScaleX || 1) * scale,
   });
   if (vector.pixelToFont) transformed.pixelToFont = (point) => {
     const mapped = vector.pixelToFont(point);
     return { x: mapped.x * scale + dx, y: mapped.y * scale + dy };
   };
   return transformed;
+}
+
+function cloneGlyphVector(vector, name) {
+  const cloned = finalizeVector({
+    ...vector,
+    name,
+    unicode: [],
+    contours: (vector.contours || []).map((contour) => contour.map((point) => ({ ...point }))),
+  });
+  delete cloned.cursiveEntry;
+  delete cloned.cursiveExit;
+  delete cloned.pixelToFont;
+  return cloned;
 }
 
 function cloneLegacyProject(project) {
@@ -137,15 +152,60 @@ function createContextualVector({ glyphs, sourceGlyph, character, config, cursiv
   return id;
 }
 
+function disconnectedLeftCharacters(pairOverrides = {}) {
+  return new Set(Object.entries(pairOverrides)
+    .filter(([, override]) => override?.connect === false)
+    .map(([key]) => key.split('|')[0]));
+}
+
+function connectedLeftFormIds(forms, joiningClass) {
+  return [forms?.init?.[joiningClass], forms?.medi?.[joiningClass]].filter(Number.isInteger);
+}
+
+function connectedRightFormIds(forms) {
+  return [forms?.fina, ...Object.values(forms?.medi || {})].filter(Number.isInteger);
+}
+
+function buildPairAdjustments(layout, glyphs) {
+  const adjustments = [];
+  for (const [pairKey, override] of Object.entries(layout.pairOverrides || {})) {
+    const spacing = Number(override?.spacing || 0);
+    if (!spacing || override?.connect === false) continue;
+    const [leftCharacter, rightCharacter] = pairKey.split('|');
+    const leftForms = layout.contextualForms?.[leftCharacter];
+    const rightForms = layout.contextualForms?.[rightCharacter];
+    const rightConfig = layout.contextualConfig?.[rightCharacter] || {};
+    if (!leftForms || !rightForms) continue;
+    const joiningClass = JOINING_TARGET_CLASSES.includes(override?.exitClass) ? override.exitClass : rightConfig.entryClass;
+    const leftIds = connectedLeftFormIds(leftForms, joiningClass);
+    const rightIds = connectedRightFormIds(rightForms);
+    for (const first of leftIds) for (const second of rightIds) {
+      const sourceScale = Number(glyphs[first]?.sourcePixelScaleX || 1);
+      adjustments.push({
+        pairKey,
+        first,
+        second,
+        spacing,
+        xAdvance: Math.round(spacing * sourceScale),
+      });
+    }
+  }
+  return adjustments;
+}
+
 export function buildRussianContextualCursiveFont(project, options = {}) {
   const legacy = buildLegacyCursiveFont(cloneLegacyProject(project), options);
   const glyphs = [...legacy.glyphs];
   const baseIds = new Map(Object.entries(legacy.layout.baseIds || {}).map(([character, id]) => [character, Number(id)]));
   const sourceByChar = new Map((project.glyphs || []).map((glyph) => [glyph.char, glyph]));
+  const pairOverrides = { ...(project.cursive?.pairOverrides || {}) };
+  const disconnectedCharacters = disconnectedLeftCharacters(pairOverrides);
   const layout = {
     ...legacy.layout,
     contextualForms: {},
     contextualConfig: {},
+    pairOverrides,
+    pairAdjustments: [],
     featureLookups: [],
     engine: 'russian-school-contextual-v1',
   };
@@ -155,13 +215,18 @@ export function buildRussianContextualCursiveFont(project, options = {}) {
     const config = project.cursive?.glyphs?.[character];
     if (!sourceGlyph || !config || !/^[а-яё]$/u.test(character) || (!config.joinLeft && !config.joinRight)) continue;
     const baseName = glyphs[id]?.name || `uni${character.codePointAt(0).toString(16).toUpperCase()}`;
-    const forms = { isol: id, init: {}, medi: {}, fina: null };
+    const forms = { isol: id, init: {}, medi: {}, fina: null, blocked: null };
     layout.contextualConfig[character] = {
       joinLeft: Boolean(config.joinLeft),
       joinRight: Boolean(config.joinRight),
       entryClass: config.entryClass || 'middle',
       entryMode: config.entryMode || 'standard',
     };
+
+    if (disconnectedCharacters.has(character)) {
+      forms.blocked = glyphs.length;
+      glyphs.push(cloneGlyphVector(glyphs[id], `${baseName}.isol.block`));
+    }
 
     if (config.joinRight) {
       for (const joiningClass of JOINING_TARGET_CLASSES) {
@@ -209,6 +274,7 @@ export function buildRussianContextualCursiveFont(project, options = {}) {
     layout.contextualForms[character] = forms;
   }
 
+  layout.pairAdjustments = buildPairAdjustments(layout, glyphs);
   for (const glyph of glyphs) delete glyph.pixelToFont;
   const inkGlyphs = glyphs.filter((glyph) => glyph.contours?.length);
   const inkTop = Math.max(0, ...inkGlyphs.map((glyph) => glyph.yMax));
@@ -222,11 +288,11 @@ export function buildRussianContextualCursiveFont(project, options = {}) {
     styleName: project.font?.styleName || 'Regular',
     ascent,
     descent,
-    version: '1.400',
+    version: '1.500',
   });
   const gsub = buildRussianContextualGsub(layout);
   layout.featureLookups = gsub.featureLookups;
-  const gpos = buildRussianCursiveGpos(glyphs);
+  const gpos = buildRussianCursiveGpos(glyphs, layout.pairAdjustments);
   const legacyTables = parseSfntTables(legacy.ttf).tables;
   const kern = legacyTables.find((table) => table.tag === 'kern')?.bytes;
   const additions = new Map([['GSUB', gsub.bytes], ['GPOS', gpos]]);
