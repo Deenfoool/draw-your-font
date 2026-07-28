@@ -16,9 +16,12 @@ const directSources = [
   'src/cursive-font-core.js',
   'src/cursive-font-v3.js',
   'src/cursive-font.js',
+  'src/font-library.js',
   'cursive-app.js',
   'cursive-ui-polish.js',
   'ui-flow.js',
+  'library-bridge.js',
+  'library.js',
 ];
 
 function partNumber(name) {
@@ -76,6 +79,7 @@ import './stage4-recovery-app.js';
 import './cursive-app.js';
 import './cursive-ui-polish.js';
 import './ui-flow.js';
+import './library-bridge.js';
 if (!document.querySelector('link[data-dyfr-cursive]')) {
   const link = document.createElement('link');
   link.rel = 'stylesheet';
