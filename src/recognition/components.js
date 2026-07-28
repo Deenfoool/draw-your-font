@@ -61,6 +61,7 @@ export function componentsFromMask(mask, width, height, options = {}) {
   const maximumComponents = Math.max(1, Math.round(options.maxComponents ?? 2000));
   const visited = new Uint8Array(mask.length);
   const queue = new Int32Array(mask.length);
+  const collectPixels = options.collectPixels !== false;
   const components = [];
   for (let start = 0; start < mask.length; start += 1) {
     if (!mask[start] || visited[start]) continue;
@@ -68,7 +69,8 @@ export function componentsFromMask(mask, width, height, options = {}) {
     let tail = 0;
     queue[tail++] = start;
     visited[start] = 1;
-    const pixels = [];
+    const pixels = collectPixels ? [] : null;
+    let area = 0;
     let x0 = width;
     let y0 = height;
     let x1 = -1;
@@ -77,7 +79,8 @@ export function componentsFromMask(mask, width, height, options = {}) {
     let sumY = 0;
     while (head < tail) {
       const index = queue[head++];
-      pixels.push(index);
+      area += 1;
+      if (pixels) pixels.push(index);
       const x = index % width;
       const y = Math.floor(index / width);
       x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y);
@@ -93,7 +96,7 @@ export function componentsFromMask(mask, width, height, options = {}) {
         }
       }
     }
-    if (pixels.length < minimumArea) continue;
+    if (area < minimumArea) continue;
     const boxWidth = x1 - x0 + 1;
     const boxHeight = y1 - y0 + 1;
     components.push({
@@ -101,10 +104,10 @@ export function componentsFromMask(mask, width, height, options = {}) {
       x0, y0, x1, y1,
       width: boxWidth,
       height: boxHeight,
-      area: pixels.length,
-      cx: sumX / pixels.length,
-      cy: sumY / pixels.length,
-      density: pixels.length / (boxWidth * boxHeight),
+      area,
+      cx: sumX / area,
+      cy: sumY / area,
+      density: area / (boxWidth * boxHeight),
       pixels,
       sourceIds: [components.length],
     });
@@ -140,7 +143,7 @@ function combineComponents(group, id) {
     x1 = Math.max(x1, component.x1); y1 = Math.max(y1, component.y1);
     area += component.area; sumX += component.cx * component.area; sumY += component.cy * component.area;
     sourceIds.push(...(component.sourceIds || [component.id]));
-    if (component.pixels) pixels.push(...component.pixels);
+    if (component.pixels?.length) pixels.push(...component.pixels);
   }
   return {
     id, x0, y0, x1, y1,
@@ -151,7 +154,7 @@ function combineComponents(group, id) {
     cy: sumY / area,
     density: area / ((x1 - x0 + 1) * (y1 - y0 + 1)),
     sourceIds: [...new Set(sourceIds)],
-    pixels,
+    pixels: pixels.length ? pixels : null,
   };
 }
 
