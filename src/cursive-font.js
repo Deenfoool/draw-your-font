@@ -1,14 +1,14 @@
 import {
   applyRussianDescenderPreset as applyCoreRussianDescenderPreset,
-  buildCursiveTrueTypeFont as buildCoreCursiveFont,
   DESCENDER_LETTERS,
   ensureCursiveProject as ensureCoreCursiveProject,
   FORM_NAMES,
-  generateCursiveFormMask as generateCoreCursiveFormMask,
   getCursiveGlyphMetrics,
   parseSfntDirectory,
   validateCursiveTrueType as validateCoreCursiveFont,
 } from './cursive-font-v3.js';
+import { buildRussianContextualCursiveFont } from './contextual-cursive-font.js';
+import { generateRussianContextualFormMask } from './contextual-cursive-mask.js';
 import {
   createDefaultExitVariants,
   getRussianEntryClass,
@@ -32,6 +32,7 @@ export {
   getCursiveGlyphMetrics,
   parseSfntDirectory,
   createDefaultExitVariants,
+  generateRussianContextualFormMask,
   getRussianEntryClass,
   getRussianEntryMode,
   JOINING_CLASSES,
@@ -49,12 +50,28 @@ export {
 
 function clamp(value, min, max) { return Math.min(max, Math.max(min, Number(value))); }
 
+function cloneAdjustment(value = {}) {
+  return {
+    offsetX: Number(value?.offsetX || 0),
+    offsetY: Number(value?.offsetY || 0),
+    scale: clamp(value?.scale ?? 1, 0.55, 1.8),
+  };
+}
+
 function cloneExitVariants(value = {}) {
   return Object.fromEntries(JOINING_TARGET_CLASSES.map((joiningClass) => {
     const point = value?.[joiningClass];
     if (!point || !Number.isFinite(Number(point.x)) || !Number.isFinite(Number(point.y))) return [joiningClass, {}];
     return [joiningClass, { x: Number(point.x), y: Number(point.y) }];
   }));
+}
+
+function cloneContextualForms(value = {}) {
+  return {
+    init: Object.fromEntries(JOINING_TARGET_CLASSES.map((joiningClass) => [joiningClass, cloneAdjustment(value?.init?.[joiningClass])])),
+    medi: Object.fromEntries(JOINING_TARGET_CLASSES.map((joiningClass) => [joiningClass, cloneAdjustment(value?.medi?.[joiningClass])])),
+    fina: cloneAdjustment(value?.fina),
+  };
 }
 
 function captureJoiningState(cursive = {}) {
@@ -66,6 +83,7 @@ function captureJoiningState(cursive = {}) {
       entryClass: config?.entryClass,
       entryMode: config?.entryMode,
       exitVariants: cloneExitVariants(config?.exitVariants),
+      contextualForms: cloneContextualForms(config?.contextualForms),
     }])),
   };
 }
@@ -99,6 +117,7 @@ function sanitizeCursiveAnchors(project, preservedJoiningState = null) {
       x: clamp(variants[joiningClass].x, 0, 1),
       y: clamp(variants[joiningClass].y, metrics.xHeightRatio, highestAllowedY),
     }]));
+    config.contextualForms = cloneContextualForms(saved.contextualForms || config.contextualForms);
   }
   project.cursive = cursive;
   return cursive;
@@ -122,23 +141,12 @@ export function generateCursiveFormMask(glyph, form = 'isol', cursive, glyphConf
     entry: { ...glyphConfig.entry, y: clamp(glyphConfig.entry?.y ?? cursive?.connectionY ?? 0.76, 0, highestAllowedY) },
     exit: { ...glyphConfig.exit, y: clamp(glyphConfig.exit?.y ?? cursive?.connectionY ?? 0.76, 0, highestAllowedY) },
   };
-  return generateCoreCursiveFormMask(glyph, form, cursive, safeConfig);
+  return generateRussianContextualFormMask(glyph, form, cursive, safeConfig);
 }
 
 export function simulateCursiveForms(text, project) {
   const cursive = sanitizeCursiveAnchors(project);
   return resolveJoiningSequence(text, cursive.glyphs, { pairOverrides: cursive.pairOverrides });
-}
-
-function align4(value) { return (value + 3) & ~3; }
-
-function checksum(bytes) {
-  const length = align4(bytes.length);
-  const padded = length === bytes.length ? bytes : (() => { const out = new Uint8Array(length); out.set(bytes); return out; })();
-  const view = new DataView(padded.buffer, padded.byteOffset, padded.byteLength);
-  let sum = 0;
-  for (let offset = 0; offset < padded.length; offset += 4) sum = (sum + view.getUint32(offset, false)) >>> 0;
-  return sum >>> 0;
 }
 
 function tagAt(bytes, offset) {
@@ -152,7 +160,6 @@ function sfntRecord(bytes, wantedTag) {
     const recordOffset = 12 + index * 16;
     if (tagAt(bytes, recordOffset) !== wantedTag) continue;
     return {
-      recordOffset,
       offset: view.getUint32(recordOffset + 8, false),
       length: view.getUint32(recordOffset + 12, false),
     };
@@ -174,33 +181,9 @@ function featureLookupMap(bytes) {
     const lookupCount = view.getUint16(feature + 2, false);
     const lookups = [];
     for (let lookupIndex = 0; lookupIndex < lookupCount; lookupIndex += 1) lookups.push(view.getUint16(feature + 4 + lookupIndex * 2, false));
-    result.set(tag, { feature, lookups });
+    result.set(tag, { lookups });
   }
   return result;
-}
-
-export function restrictCursiveFeatureLookups(ttfBytes) {
-  const input = ttfBytes instanceof Uint8Array ? ttfBytes : new Uint8Array(ttfBytes);
-  const bytes = new Uint8Array(input);
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const features = featureLookupMap(bytes);
-  for (const tag of ['calt', 'rlig']) {
-    const record = features.get(tag);
-    if (!record) throw new Error(`В GSUB отсутствует функция ${tag}.`);
-    if (record.lookups.length < 6) throw new Error(`Функция ${tag} содержит неполный набор контекстных lookup.`);
-    view.setUint16(record.feature + 2, 3, false);
-    view.setUint16(record.feature + 4, 1, false);
-    view.setUint16(record.feature + 6, 3, false);
-    view.setUint16(record.feature + 8, 5, false);
-  }
-
-  const head = sfntRecord(bytes, 'head');
-  const gsub = sfntRecord(bytes, 'GSUB');
-  if (!head || !gsub) throw new Error('Не найдены таблицы head/GSUB для пересчёта контрольных сумм.');
-  bytes.fill(0, head.offset + 8, head.offset + 12);
-  view.setUint32(gsub.recordOffset + 4, checksum(bytes.slice(gsub.offset, gsub.offset + gsub.length)), false);
-  view.setUint32(head.offset + 8, (0xb1b0afba - checksum(bytes)) >>> 0, false);
-  return bytes;
 }
 
 export function readCursiveFeatureLookups(ttfBytes) {
@@ -210,9 +193,8 @@ export function readCursiveFeatureLookups(ttfBytes) {
 export function buildCursiveTrueTypeFont(project, options = {}) {
   const cursive = sanitizeCursiveAnchors(project);
   const joiningState = captureJoiningState(cursive);
-  const built = buildCoreCursiveFont(project, options);
+  const built = buildRussianContextualCursiveFont(project, options);
   const restored = sanitizeCursiveAnchors(project, joiningState);
-  built.ttf = restrictCursiveFeatureLookups(built.ttf);
   built.layout.joining = captureJoiningState(restored);
   return built;
 }
@@ -221,9 +203,13 @@ export function validateCursiveTrueType(ttfBytes) {
   const errors = validateCoreCursiveFont(ttfBytes);
   try {
     const lookups = readCursiveFeatureLookups(ttfBytes);
-    for (const tag of ['calt', 'rlig']) {
-      if (JSON.stringify(lookups[tag]) !== JSON.stringify([1, 3, 5])) errors.push(`Функция ${tag} должна ссылаться только на контекстные lookup 1, 3 и 5.`);
-    }
+    const calt = lookups.calt || [];
+    const rlig = lookups.rlig || [];
+    if (!calt.length) errors.push('Функция calt не содержит контекстных lookup.');
+    if (!rlig.length) errors.push('Функция rlig не содержит контекстных lookup.');
+    if (JSON.stringify(calt) !== JSON.stringify(rlig)) errors.push('Функции calt и rlig должны использовать одинаковую русскую грамматику соединений.');
+    if (calt.some((lookupIndex) => lookupIndex % 2 !== 1)) errors.push('Функция calt должна ссылаться только на контекстные lookup.');
+    if (rlig.some((lookupIndex) => lookupIndex % 2 !== 1)) errors.push('Функция rlig должна ссылаться только на контекстные lookup.');
   } catch (error) {
     errors.push(error.message);
   }
