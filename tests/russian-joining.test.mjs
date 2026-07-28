@@ -73,7 +73,7 @@ assert.deepEqual(contextual('мама'), ['init.l', 'medi.l', 'medi.l', 'fina'])
 assert.deepEqual(contextual('ма ма'), ['init.l', 'fina', 'isol', 'init.l', 'fina']);
 assert.deepEqual(simulateCursiveForms('мама', project).map((item) => item.form), ['init', 'medi', 'medi', 'fina']);
 
-cursive.pairOverrides['м|о'] = { exitClass: 'upper', spacing: -12 };
+ensureCursiveProject(project).pairOverrides['м|о'] = { exitClass: 'upper', spacing: -12 };
 let sequence = simulateCursiveForms('мо', project);
 assert.equal(sequence[0].contextualForm, 'init.u');
 assert.equal(sequence[0].pairKey, 'м|о');
