@@ -37,23 +37,18 @@ export function normalizeGrayRobust(gray, lowFraction = 0.01, highFraction = 0.9
   return Uint8Array.from(gray, value => clamp(Math.round((value - low) * scale), 0, 255));
 }
 
-function integralMoments(gray, width, height) {
+function fillIntegral(integral, gray, width, height, squared) {
+  integral.fill(0);
   const stride = width + 1;
-  const sum = new Float64Array(stride * (height + 1));
-  const square = new Float64Array(stride * (height + 1));
   for (let y = 0; y < height; y += 1) {
     let rowSum = 0;
-    let rowSquare = 0;
     for (let x = 0; x < width; x += 1) {
-      const value = gray[y * width + x];
+      const source = gray[y * width + x];
+      const value = squared ? source * source : source;
       rowSum += value;
-      rowSquare += value * value;
-      const target = (y + 1) * stride + x + 1;
-      sum[target] = sum[y * stride + x + 1] + rowSum;
-      square[target] = square[y * stride + x + 1] + rowSquare;
+      integral[(y + 1) * stride + x + 1] = integral[y * stride + x + 1] + rowSum;
     }
   }
-  return { sum, square, stride };
 }
 
 function rectangleMoment(integral, stride, x0, y0, x1, y1) {
@@ -65,9 +60,24 @@ function rectangleMoment(integral, stride, x0, y0, x1, y1) {
 
 export function localStatistics(gray, width, height, radius) {
   const normalizedRadius = Math.max(2, Math.round(radius));
-  const { sum, square, stride } = integralMoments(gray, width, height);
+  const stride = width + 1;
+  const integral = new Float64Array(stride * (height + 1));
   const mean = new Float32Array(gray.length);
   const deviation = new Float32Array(gray.length);
+
+  fillIntegral(integral, gray, width, height, false);
+  for (let y = 0; y < height; y += 1) {
+    const y0 = Math.max(0, y - normalizedRadius);
+    const y1 = Math.min(height - 1, y + normalizedRadius);
+    for (let x = 0; x < width; x += 1) {
+      const x0 = Math.max(0, x - normalizedRadius);
+      const x1 = Math.min(width - 1, x + normalizedRadius);
+      const area = (x1 - x0 + 1) * (y1 - y0 + 1);
+      mean[y * width + x] = rectangleMoment(integral, stride, x0, y0, x1, y1) / area;
+    }
+  }
+
+  fillIntegral(integral, gray, width, height, true);
   let maximumDeviation = 1;
   for (let y = 0; y < height; y += 1) {
     const y0 = Math.max(0, y - normalizedRadius);
@@ -76,14 +86,12 @@ export function localStatistics(gray, width, height, radius) {
       const x0 = Math.max(0, x - normalizedRadius);
       const x1 = Math.min(width - 1, x + normalizedRadius);
       const area = (x1 - x0 + 1) * (y1 - y0 + 1);
-      const total = rectangleMoment(sum, stride, x0, y0, x1, y1);
-      const totalSquare = rectangleMoment(square, stride, x0, y0, x1, y1);
-      const average = total / area;
-      const variance = Math.max(0, totalSquare / area - average * average);
+      const average = mean[y * width + x];
+      const totalSquare = rectangleMoment(integral, stride, x0, y0, x1, y1);
+      const standardDeviation = Math.sqrt(Math.max(0, totalSquare / area - average * average));
       const index = y * width + x;
-      mean[index] = average;
-      deviation[index] = Math.sqrt(variance);
-      maximumDeviation = Math.max(maximumDeviation, deviation[index]);
+      deviation[index] = standardDeviation;
+      maximumDeviation = Math.max(maximumDeviation, standardDeviation);
     }
   }
   return { mean, deviation, maximumDeviation };
