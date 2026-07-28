@@ -101,16 +101,20 @@ export function selectBestPageSegmentation(grayInput, width, height, options = {
     if (opts.closeIterations) mask = closeMaskDirectional(mask, width, height, Math.min(2, opts.closeIterations));
     if (opts.openIterations) mask = openMask(mask, width, height, Math.min(2, opts.openIterations));
     mask = bridgeShortGaps(mask, width, height, 1);
-    const rawComponents = componentsFromMask(mask, width, height, { minArea: Math.max(1, Math.round(opts.minArea * 0.45)), maxComponents: opts.maxComponents });
+    const rawComponents = componentsFromMask(mask, width, height, {
+      minArea: Math.max(1, Math.round(opts.minArea * 0.45)),
+      maxComponents: opts.maxComponents,
+      collectPixels: false,
+    });
     const merged = mergeNearbyComponents(rawComponents, opts);
     const filtered = filterPageComponents(merged, width, height, opts);
     const glyphs = orderComponentsIntoRows(filtered);
     const score = pageCandidateScore(mask, width, height, glyphs, rawComponents);
-    diagnostics.push({ method: definition.name, score, glyphCount: glyphs.length });
+    diagnostics.push({ method: definition.name, score, glyphCount: glyphs.length, rawCount: rawComponents.length });
     const candidate = { method: definition.name, score, mask, glyphs, rawComponents, localBackground: thresholded.localBackground, normalized: gray };
-    if (!best || score > best.score || (score === best.score && Math.abs(glyphs.length - 88) < Math.abs(best.glyphs.length - 88))) best = candidate;
+    if (!best || score > best.score || (score === best.score && rawComponents.length < best.rawComponents.length)) best = candidate;
   }
-  diagnostics.sort((left, right) => right.score - left.score || Math.abs(left.glyphCount - 88) - Math.abs(right.glyphCount - 88));
+  diagnostics.sort((left, right) => right.score - left.score || left.rawCount - right.rawCount);
   return {
     ...best,
     confidence: best.score,
