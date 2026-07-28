@@ -8,6 +8,15 @@ const PENDING_PROJECT_KEY = 'dyfr:library-open-project';
 const byId = id => document.getElementById(id);
 const currentProject = () => window.__drawYourFontProject?.getProject?.() || null;
 
+function ensureStylesheet() {
+  if (document.querySelector('link[data-dyfr-library-bridge]')) return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = './library-bridge.css';
+  link.dataset.dyfrLibraryBridge = '1';
+  document.head.append(link);
+}
+
 function installLibraryNavigation() {
   const topbar = document.querySelector('.topbar');
   if (!topbar || byId('fontLibraryLink')) return;
@@ -115,7 +124,12 @@ async function addCurrentFont() {
     button.textContent = 'Сохранено в библиотеке';
     setSaveStatus(`«${record.familyName} ${record.styleName}» сохранён. Повторное добавление обновит эту запись.`, 'ok');
     window.dispatchEvent(new CustomEvent('drawyourfont:library-updated', { detail: { id: record.id } }));
-    try { new BroadcastChannel('draw-your-font-library').postMessage({ type: 'updated', id: record.id }); } catch {}
+    try {
+      localStorage.setItem('dyfr:library-updated', String(Date.now()));
+      const channel = new BroadcastChannel('draw-your-font-library');
+      channel.postMessage({ type: 'updated', id: record.id });
+      channel.close();
+    } catch {}
     return record;
   } catch (error) {
     console.error(error);
@@ -170,6 +184,7 @@ function restoreProjectFromLibrary() {
 }
 
 function install() {
+  ensureStylesheet();
   installLibraryNavigation();
   if (!installLibraryControls()) return setTimeout(install, 40);
   watchBuildState();
