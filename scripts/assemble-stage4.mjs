@@ -74,6 +74,12 @@ function patchRecognitionEngine(sourceBuffer) {
   );
   source = replaceRequired(
     source,
+    'function renderAll() {\n  renderStats();',
+    "function renderAll() {\n  if (state.analysis && state.sourceImageData) state.glyphs = annotateGlyphConfidence(state.glyphs, state.analysis.mask, state.sourceImageData.width, state.sourceImageData.height, state.labels);\n  renderStats();",
+    'renderAll function not found',
+  );
+  source = replaceRequired(
+    source,
     "const text = `${index + 1}${state.labels[index] ? ` · ${state.labels[index]}` : ''}`;",
     "const confidence = glyph.confidence?.score;\n    const text = `${index + 1}${state.labels[index] ? ` · ${state.labels[index]}` : ''}${Number.isFinite(confidence) ? ` · ${confidence}%` : ''}`;",
     'overlay label not found',
@@ -130,7 +136,12 @@ if (!document.querySelector('link[data-dyfr-cursive]')) {
 }
 `, 'utf8')]);
   }
-  await writeFile(resolve(root, outputPath), source);
+  const output = resolve(root, outputPath);
+  await writeFile(output, source);
+  if (outputPath.endsWith('.js')) {
+    const syntax = spawnSync(process.execPath, ['--check', output], { encoding: 'utf8' });
+    if (syntax.status !== 0) throw new Error(`Syntax check failed for assembled ${outputPath}: ${syntax.stderr || syntax.stdout}`);
+  }
   console.log(`Assembled ${outputPath} (${source.length} bytes, ${parts.length} verified parts, numbering starts at ${startNumber}).`);
 }
 
