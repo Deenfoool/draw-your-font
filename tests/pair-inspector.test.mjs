@@ -6,6 +6,7 @@ import {
   PAIR_INSPECTOR_VERSION,
   PAIR_STATUSES,
 } from '../src/pair-inspector.js';
+import { RUSSIAN_LOWERCASE } from '../src/russian-joining.js';
 
 function glyph(char, seed = 0) {
   const width = 48;
@@ -98,4 +99,31 @@ assert.equal(Object.values(matrix.counts).reduce((sum, count) => sum + count, 0)
 assert.ok(matrix.inspected > 0);
 assert.ok(matrix.averageScore >= 0 && matrix.averageScore <= 100);
 
-console.log(`Stage 11.5 pair inspector tests: PASS. ${matrix.total} pairs, average ${matrix.averageScore}.`);
+const fullProject = {
+  format: 'draw-your-font-project',
+  version: 4,
+  title: 'Full Russian Pair Matrix',
+  font: { familyName: 'Full Russian Pair Matrix', styleName: 'Regular', ascent: 800, descent: -200 },
+  glyphs: RUSSIAN_LOWERCASE.map((char, index) => glyph(char, (index % 3) - 1)),
+  kerning: {},
+};
+ensureCursiveProject(fullProject).enabled = true;
+const fullMatrix = inspectRussianPairMatrix(fullProject);
+assert.equal(fullMatrix.characters.length, 33);
+assert.equal(fullMatrix.total, 1089);
+assert.equal(fullMatrix.pairs.length, 1089);
+assert.equal(Object.keys(fullMatrix.byPair).length, 1089);
+assert.equal(Object.values(fullMatrix.counts).reduce((sum, count) => sum + count, 0), 1089);
+assert.equal(fullMatrix.counts.missing, 0);
+assert.equal(fullMatrix.counts.disconnected, 0);
+assert.equal(fullMatrix.inspected, 1089);
+for (const result of fullMatrix.pairs) {
+  assert.equal(result.pair.length, 2);
+  assert.ok(['good', 'review', 'bad'].includes(result.status));
+  assert.ok(Number.isFinite(result.score));
+  assert.ok(result.metrics);
+  assert.ok(Number.isFinite(result.metrics.verticalJump));
+  assert.ok(Number.isFinite(result.metrics.seamDistance));
+}
+
+console.log(`Stage 11.5 pair inspector tests: PASS. Full matrix ${fullMatrix.total} pairs, average ${fullMatrix.averageScore}.`);
