@@ -83,8 +83,10 @@ assert.match(publicClient, /rememberPublicationOwnership/);
 assert.match(libraryHtml, /Моя библиотека/);
 assert.match(libraryHtml, /Общая библиотека/);
 assert.match(server, /createDrawYourFontServer/);
-assert.match(server, /validateSignature/);
-assert.match(server, /MAX_JSON_BYTES/);
+assert.match(server, /function signature/);
+assert.match(server, /MAX_BODY/);
+assert.match(server, /wasm-unsafe-eval/);
+assert.match(server, /PRIVATE_PREFIXES/);
 
 const stage4 = await readFile('stage4-app.js', 'utf8');
 assert.match(stage4, /import '\.\/cursive-app\.js';/);
