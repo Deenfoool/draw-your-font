@@ -10,6 +10,7 @@ import {
 import { buildRussianContextualCursiveFont } from './contextual-cursive-font.js';
 import { generateRussianContextualFormMask } from './contextual-cursive-mask.js';
 import {
+  connectionRatioToFontLevel,
   createDefaultExitVariants,
   getRussianEntryClass,
   getRussianEntryMode,
@@ -20,6 +21,7 @@ import {
   normalizeJoiningClass,
   resolveConnectionRatio,
   resolveJoiningSequence,
+  RUSSIAN_CONNECTION_LEVELS,
   RUSSIAN_LOWERCASE,
   RUSSIAN_SCHOOL_ENTRY_CLASS,
   sanitizePairOverrides,
@@ -31,6 +33,7 @@ export {
   FORM_NAMES,
   getCursiveGlyphMetrics,
   parseSfntDirectory,
+  connectionRatioToFontLevel,
   createDefaultExitVariants,
   generateRussianContextualFormMask,
   getRussianEntryClass,
@@ -42,6 +45,7 @@ export {
   normalizeJoiningClass,
   resolveConnectionRatio,
   resolveJoiningSequence,
+  RUSSIAN_CONNECTION_LEVELS,
   RUSSIAN_LOWERCASE,
   RUSSIAN_SCHOOL_ENTRY_CLASS,
   sanitizePairOverrides,
