@@ -21,6 +21,7 @@ const directSources = [
   'src/contextual-cursive-font.js',
   'src/cursive-font.js',
   'src/connection-template.js',
+  'src/connection-template-scanner.js',
   'src/font-library.js',
   'src/public-library-client.js',
   'src/recognition-v2.js',
