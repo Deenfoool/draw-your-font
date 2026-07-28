@@ -80,7 +80,7 @@ with tempfile.TemporaryDirectory(prefix='dyfr-cursive-ui-') as temp:
                   await new Promise(resolve => setTimeout(resolve, 40));
                 }
               };
-              await waitFor(() => window.__drawYourFontProject && window.__drawYourFontCursive && window.__drawYourFontConnectionTemplate && document.querySelector('#cursiveBuilder'));
+              await waitFor(() => window.__drawYourFontProject && window.__drawYourFontCursive && window.__drawYourFontConnectionTemplate && window.__drawYourFontPairInspector && document.querySelector('#cursiveBuilder') && document.querySelector('#pairInspector'));
               const descenders = new Set(['д','р','у','ф','щ','ц']);
               const makeGlyph = (char, seed = 0) => {
                 const width = 54, height = 78, mask = new Uint8Array(width * height);
@@ -95,7 +95,7 @@ with tempfile.TemporaryDirectory(prefix='dyfr-cursive-ui-') as temp:
               const chars=['м','а','т','д','р','у','ф','щ','ц','о','ж','ь','с','е','и','А'];
               const project={format:'draw-your-font-project',version:4,id:'cursive-browser-test',title:'Cursive Browser Test',createdAt:now,updatedAt:now,glyphs:chars.map((char,index)=>makeGlyph(char,(index%3)-1)),kerning:{'А|А':-40},font:{familyName:'Cursive Browser Test',styleName:'Regular',unitsPerEm:1000,ascent:800,descent:-200,lineGap:120},template:null,sourceFiles:[]};
               window.__drawYourFontProject.importProject(JSON.stringify(project));
-              await waitFor(() => document.querySelector('#cursiveCharacter')?.options.length >= 15 && document.querySelector('#cursiveConnectionTemplateDownload'));
+              await waitFor(() => document.querySelector('#cursiveCharacter')?.options.length >= 15 && document.querySelector('#cursiveConnectionTemplateDownload') && document.querySelector('#pairInspectorRun'));
               const enabled=document.querySelector('#cursiveEnabled');if(!enabled.checked) enabled.click();
               document.querySelector('#cursiveDescenderPreset').click();
               document.querySelector('#cursiveCharacter').value='р';document.querySelector('#cursiveCharacter').dispatchEvent(new Event('change',{bubbles:true}));
@@ -112,6 +112,12 @@ with tempfile.TemporaryDirectory(prefix='dyfr-cursive-ui-') as temp:
               if(connectionTemplate.pageCount!==3 || connectionTemplate.plan.samples.length!==99) throw new Error(`Bad connection template ${connectionTemplate.pageCount}/${connectionTemplate.plan.samples.length}`);
               const pdfSignature=String.fromCharCode(...connectionTemplate.bytes.slice(0,8));
               if(!pdfSignature.startsWith('%PDF-1.')) throw new Error(`Bad connection PDF signature ${pdfSignature}`);
+              const pairMatrix=await window.__drawYourFontPairInspector.run({characters:['м','о','с']});
+              if(!pairMatrix || pairMatrix.total!==9 || Object.keys(pairMatrix.byPair).length!==9) throw new Error(`Bad pair matrix ${JSON.stringify(pairMatrix)}`);
+              await waitFor(() => document.querySelectorAll('#pairInspectorMatrix .pair-cell').length===9);
+              window.__drawYourFontPairInspector.select('мо');
+              const pairDetail=window.__drawYourFontPairInspector.inspect('м','о');
+              if(!pairDetail?.metrics || pairDetail.metrics.entryProfile!=='ru-school-o') throw new Error(`Bad pair detail ${JSON.stringify(pairDetail)}`);
               document.querySelector('#fontBuild').click();
               await waitFor(() => ['ok','error'].includes(document.querySelector('#fontStatus').dataset.mode), 120000);
               const status=document.querySelector('#fontStatus');
@@ -127,7 +133,7 @@ with tempfile.TemporaryDirectory(prefix='dyfr-cursive-ui-') as temp:
               const signature=String.fromCharCode(...state.outputs.ttf.slice(0,4));
               const woff2=String.fromCharCode(...state.outputs.woff2.slice(0,4));
               const preview=document.querySelector('#fontPreview');
-              return {forms,contextual,ttf:state.outputs.ttf.length,woff2:state.outputs.woff2.length,signature,woff2Signature:woff2,featureSettings:preview.style.fontFeatureSettings,canvasCount:document.querySelectorAll('#cursiveForms canvas').length,status:status.textContent,tables:state.outputs.built.tables,engine:state.outputs.built.layout.engine,featureLookups:state.outputs.built.layout.featureLookups,vertical:rVertical,metrics:state.outputs.built.layout.metrics,connectionTemplate:{signature:pdfSignature,pageCount:connectionTemplate.pageCount,samples:connectionTemplate.plan.samples.length,size:connectionTemplate.size,status:document.querySelector('#cursiveConnectionTemplateStatus').textContent},controls:{baseline:!!document.querySelector('#cursiveBaseline'),descender:!!document.querySelector('#cursiveDescenderScale'),preset:!!document.querySelector('#cursiveDescenderPreset'),templateDownload:!!document.querySelector('#cursiveConnectionTemplateDownload'),templateFiles:!!document.querySelector('#cursiveConnectionTemplateFiles'),templateScan:!!document.querySelector('#cursiveConnectionTemplateScan')}};
+              return {forms,contextual,ttf:state.outputs.ttf.length,woff2:state.outputs.woff2.length,signature,woff2Signature:woff2,featureSettings:preview.style.fontFeatureSettings,canvasCount:document.querySelectorAll('#cursiveForms canvas').length,status:status.textContent,tables:state.outputs.built.tables,engine:state.outputs.built.layout.engine,featureLookups:state.outputs.built.layout.featureLookups,vertical:rVertical,metrics:state.outputs.built.layout.metrics,connectionTemplate:{signature:pdfSignature,pageCount:connectionTemplate.pageCount,samples:connectionTemplate.plan.samples.length,size:connectionTemplate.size,status:document.querySelector('#cursiveConnectionTemplateStatus').textContent},pairInspector:{total:pairMatrix.total,inspected:pairMatrix.inspected,averageScore:pairMatrix.averageScore,cells:document.querySelectorAll('#pairInspectorMatrix .pair-cell').length,pair:document.querySelector('#pairInspectorPair').textContent,profile:pairDetail.metrics.entryProfile,canvas:!!document.querySelector('#pairInspectorCanvas')},controls:{baseline:!!document.querySelector('#cursiveBaseline'),descender:!!document.querySelector('#cursiveDescenderScale'),preset:!!document.querySelector('#cursiveDescenderPreset'),templateDownload:!!document.querySelector('#cursiveConnectionTemplateDownload'),templateFiles:!!document.querySelector('#cursiveConnectionTemplateFiles'),templateScan:!!document.querySelector('#cursiveConnectionTemplateScan'),pairRun:!!document.querySelector('#pairInspectorRun'),pairFilter:!!document.querySelector('#pairInspectorFilter'),pairOverride:!!document.querySelector('#pairOverrideSave')}};
             })()''')
             if result['forms'] != ['init', 'medi', 'medi', 'medi', 'fina']:
                 raise RuntimeError(f'Wrong base forms: {result}')
@@ -142,10 +148,13 @@ with tempfile.TemporaryDirectory(prefix='dyfr-cursive-ui-') as temp:
             if 'GSUB' not in result['tables'] or 'GPOS' not in result['tables']:
                 raise RuntimeError(f'OpenType tables missing: {result}')
             if not all(result['controls'].values()) or result['vertical']['yMin'] >= -80 or result['metrics']['descent'] >= -200:
-                raise RuntimeError(f'Cursive/template controls or metrics incomplete: {result}')
+                raise RuntimeError(f'Cursive/template/pair controls or metrics incomplete: {result}')
             template = result['connectionTemplate']
             if template['pageCount'] != 3 or template['samples'] != 99 or not template['signature'].startswith('%PDF-1.') or template['size'] < 1000:
                 raise RuntimeError(f'Connection template PDF incomplete: {result}')
+            pair_inspector = result['pairInspector']
+            if pair_inspector['total'] != 9 or pair_inspector['cells'] != 9 or pair_inspector['pair'] != 'мо' or pair_inspector['profile'] != 'ru-school-o' or not pair_inspector['canvas']:
+                raise RuntimeError(f'Pair inspector incomplete: {result}')
             print(json.dumps(result, ensure_ascii=False, indent=2))
         finally:
             ws.close()
