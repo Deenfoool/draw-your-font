@@ -28,6 +28,14 @@ function humanDate(value) {
   catch { return String(value || ''); }
 }
 
+function fontFaceDescriptors(styleName) {
+  const value = String(styleName || '').toLowerCase();
+  return {
+    style: value.includes('italic') ? 'italic' : value.includes('oblique') ? 'oblique' : 'normal',
+    weight: value.includes('bold') ? '700' : '400',
+  };
+}
+
 function switchTab(tab) {
   state.active = tab === 'public' ? 'public' : 'local';
   byId('localLibraryPanel').hidden = state.active !== 'local';
@@ -51,7 +59,7 @@ async function applyPublicFont(record, preview) {
   const sourceKey = record.availableFiles.includes('woff2') ? 'woff2' : 'ttf';
   const family = `DYFR Public ${record.id.replace(/[^a-z0-9]/gi, '').slice(-24)}`;
   try {
-    const face = new FontFace(family, `url(${JSON.stringify(publicFileUrl(record.id, sourceKey))})`, { style: record.styleName || 'normal' });
+    const face = new FontFace(family, `url(${JSON.stringify(publicFileUrl(record.id, sourceKey))})`, fontFaceDescriptors(record.styleName));
     await face.load();
     document.fonts.add(face);
     state.faces.set(record.id, { face, family });
@@ -95,11 +103,11 @@ function createPublicCard(record) {
   const meta = element('div', 'library-meta');
   const license = element('span');
   license.append(element('strong', '', PUBLIC_LICENSE_LABELS[record.license] || record.license));
-  meta.append(
-    license,
-    (() => { const item = element('span'); item.append(element('strong', '', String(record.glyphCount || 0)), document.createTextNode(' глифов')); return item; })(),
-    (() => { const item = element('span'); item.append(element('strong', '', formatLibraryBytes(record.totalBytes || 0)), document.createTextNode(' файлов')); return item; })(),
-  );
+  const glyphs = element('span');
+  glyphs.append(element('strong', '', String(record.glyphCount || 0)), document.createTextNode(' глифов'));
+  const size = element('span');
+  size.append(element('strong', '', formatLibraryBytes(record.totalBytes || 0)), document.createTextNode(' файлов'));
+  meta.append(license, glyphs, size);
 
   const files = element('div', 'library-file-actions public-file-actions');
   files.append(
@@ -120,7 +128,10 @@ function createPublicCard(record) {
       try {
         await deletePublicFont(record.id);
         const stored = state.faces.get(record.id);
-        if (stored) { try { document.fonts.delete(stored.face); } catch {} state.faces.delete(record.id); }
+        if (stored) {
+          try { document.fonts.delete(stored.face); } catch {}
+          state.faces.delete(record.id);
+        }
         await reloadPublicLibrary();
       } catch (error) {
         remove.disabled = false;
