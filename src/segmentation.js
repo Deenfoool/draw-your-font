@@ -89,7 +89,7 @@ export function cleanMask(mask, width, height, options = {}) {
 
 export function connectedComponents(mask, width, height, options = {}) {
   const opts = { ...DEFAULTS, ...options };
-  return componentsFromMask(mask, width, height, { minArea: opts.minArea, maxComponents: opts.maxComponents });
+  return componentsFromMask(mask, width, height, { minArea: opts.minArea, maxComponents: opts.maxComponents, collectPixels: false });
 }
 
 export function mergeComponents(components, options = {}) {
@@ -133,7 +133,7 @@ export function segmentGrayscale(gray, width, height, options = {}) {
 
   const threshold = adaptiveBinarize(gray, width, height, opts);
   const mask = cleanMask(threshold.mask, width, height, opts);
-  const rawComponents = componentsFromMask(mask, width, height, { minArea: opts.minArea, maxComponents: opts.maxComponents });
+  const rawComponents = componentsFromMask(mask, width, height, { minArea: opts.minArea, maxComponents: opts.maxComponents, collectPixels: false });
   const merged = mergeNearbyComponents(rawComponents, opts);
   const glyphs = orderComponentsIntoRows(filterPageComponents(merged, width, height, opts));
   return {
