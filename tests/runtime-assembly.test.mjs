@@ -6,8 +6,9 @@ const assembly = await readFile('scripts/assemble-stage4.mjs', 'utf8');
 assert.doesNotMatch(assembly, /source-parts\/cursive-font-v2\.js/);
 assert.doesNotMatch(assembly, /source-parts\/cursive-app-v4\.js/);
 for (const name of [
-  'src/cursive-font-core.js', 'src/cursive-font-v3.js', 'src/russian-joining.js', 'src/cursive-font.js',
-  'src/font-library.js', 'src/public-library-client.js', 'src/recognition-v2.js', 'cursive-app.js',
+  'src/cursive-font-core.js', 'src/cursive-font-v3.js', 'src/russian-joining.js',
+  'src/contextual-cursive-mask.js', 'src/opentype-contextual-layout.js', 'src/contextual-cursive-font.js',
+  'src/cursive-font.js', 'src/font-library.js', 'src/public-library-client.js', 'src/recognition-v2.js', 'cursive-app.js',
   'cursive-ui-polish.js', 'ui-flow.js', 'library-bridge.js', 'library.js',
   'public-library.js', 'server.mjs',
 ]) assert.ok(assembly.includes(name), `${name} is missing from runtime verification`);
@@ -34,8 +35,9 @@ for (const directory of ['source-parts/app.js', 'source-parts/font-app.js', 'sou
 }
 
 const directJs = [
-  'src/cursive-font-core.js', 'src/cursive-font-v3.js', 'src/russian-joining.js', 'src/cursive-font.js',
-  'src/font-library.js', 'src/public-library-client.js', 'src/recognition-v2.js', 'cursive-app.js',
+  'src/cursive-font-core.js', 'src/cursive-font-v3.js', 'src/russian-joining.js',
+  'src/contextual-cursive-mask.js', 'src/opentype-contextual-layout.js', 'src/contextual-cursive-font.js',
+  'src/cursive-font.js', 'src/font-library.js', 'src/public-library-client.js', 'src/recognition-v2.js', 'cursive-app.js',
   'cursive-ui-polish.js', 'ui-flow.js', 'library-bridge.js', 'library.js',
   'public-library.js', 'server.mjs',
 ];
@@ -49,6 +51,9 @@ for (const file of directJs) {
 const legacyCore = await readFile('src/cursive-font-core.js', 'utf8');
 const descenderCore = await readFile('src/cursive-font-v3.js', 'utf8');
 const joiningGrammar = await readFile('src/russian-joining.js', 'utf8');
+const contextualMask = await readFile('src/contextual-cursive-mask.js', 'utf8');
+const contextualLayout = await readFile('src/opentype-contextual-layout.js', 'utf8');
+const contextualBuilder = await readFile('src/contextual-cursive-font.js', 'utf8');
 const wrapper = await readFile('src/cursive-font.js', 'utf8');
 const libraryStorage = await readFile('src/font-library.js', 'utf8');
 const publicClient = await readFile('src/public-library-client.js', 'utf8');
@@ -70,11 +75,20 @@ assert.match(descenderCore, /function buildGpos\(/);
 assert.match(joiningGrammar, /RUSSIAN_SCHOOL_ENTRY_CLASS/);
 assert.match(joiningGrammar, /resolveJoiningSequence/);
 assert.match(joiningGrammar, /contextualForm/);
+assert.match(contextualMask, /leftExternalY/);
+assert.match(contextualMask, /rightExternalY/);
+assert.match(contextualMask, /exitVariants/);
+assert.match(contextualLayout, /buildRussianContextualGsub/);
+assert.match(contextualLayout, /buildRussianCursiveGpos/);
+assert.match(contextualLayout, /featureLookups/);
+assert.match(contextualBuilder, /russian-school-contextual-v1/);
+assert.match(contextualBuilder, /contextualForms/);
+assert.match(contextualBuilder, /buildRussianContextualCursiveFont/);
 assert.match(wrapper, /from '\.\/cursive-font-v3\.js'/);
 assert.match(wrapper, /from '\.\/russian-joining\.js'/);
-assert.match(wrapper, /restrictCursiveFeatureLookups/);
-assert.match(wrapper, /\[1, 3, 5\]/);
-assert.match(wrapper, /exitVariants/);
+assert.match(wrapper, /from '\.\/contextual-cursive-font\.js'/);
+assert.match(wrapper, /generateRussianContextualFormMask/);
+assert.match(wrapper, /lookupIndex % 2 !== 1/);
 assert.match(recognition, /sauvolaBinarize/);
 assert.match(recognition, /otsuBinarize/);
 assert.match(recognition, /suppressGuideLines/);
@@ -117,4 +131,4 @@ assert.match(stage4, /import '\.\/cursive-ui-polish\.js';/);
 assert.match(stage4, /import '\.\/ui-flow\.js';/);
 assert.match(stage4, /import '\.\/library-bridge\.js';/);
 assert.match(stage4, /link\.href = '\.\/cursive\.css'/);
-console.log('Runtime assembly, Recognition Engine 2, Russian joining grammar and libraries regression test: PASS');
+console.log('Runtime assembly, Recognition Engine 2, contextual Russian joining and libraries regression test: PASS');
