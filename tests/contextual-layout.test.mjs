@@ -74,8 +74,16 @@ function inspectGsub(built, expectedFeatureLookups) {
   return bytes;
 }
 
+const defaultLookups = [1, 3, 5, 7, 9, 11, 13, 15, 17];
 const built = buildRussianContextualGsub(layout);
-const bytes = inspectGsub(built, [1, 3, 5, 7, 9, 11, 13, 15, 17]);
+const bytes = inspectGsub(built, defaultLookups);
+
+const spacingOnly = buildRussianContextualGsub({
+  ...layout,
+  pairOverrides: { 'и|о': { spacing: 8 } },
+});
+const spacingOnlyBytes = inspectGsub(spacingOnly, defaultLookups);
+assert.equal(spacingOnlyBytes.length, bytes.length, 'Spacing-only overrides must not create GSUB rules.');
 
 const overridden = buildRussianContextualGsub({
   ...layout,
@@ -84,7 +92,7 @@ const overridden = buildRussianContextualGsub({
     'е|с': { connect: false },
   },
 });
-const overrideBytes = inspectGsub(overridden, [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21]);
+const overrideBytes = inspectGsub(overridden, [...defaultLookups, 19, 21]);
 assert.ok(overrideBytes.length > bytes.length);
 
 const glyphs = Array.from({ length: nextGlyphId + 1 }, () => ({ contours: [] }));
