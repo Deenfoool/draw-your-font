@@ -125,7 +125,7 @@ function hasHorizontalInk(mask, width, height, x, y, distance) {
   return false;
 }
 
-function suppressKnownGuideBands(mask, width, height, options = {}) {
+function suppressKnownGuideBands(mask, normalized, localBackground, width, height, options = {}) {
   const rows = normalizedGuidePositions(options.guideRows, height);
   const columns = normalizedGuidePositions(options.guideColumns, width);
   if (!rows.length && !columns.length) return new Uint8Array(mask);
@@ -134,6 +134,12 @@ function suppressKnownGuideBands(mask, width, height, options = {}) {
   const columnRadius = Math.max(0, Math.round(options.guideColumnRadius || 0));
   const rowCoverage = Number.isFinite(options.knownGuideRowCoverage) ? options.knownGuideRowCoverage : 0.42;
   const columnCoverage = Number.isFinite(options.knownGuideColumnCoverage) ? options.knownGuideColumnCoverage : 0.5;
+  const inkCap = Number.isFinite(options.guideInkCap) ? options.guideInkCap : 125;
+  const inkContrast = Number.isFinite(options.guideInkContrast) ? options.guideInkContrast : 70;
+  const isStrongInk = (index) => Boolean(normalized) && (
+    normalized[index] <= inkCap
+    || (localBackground && localBackground[index] - normalized[index] >= inkContrast)
+  );
 
   for (const center of rows) {
     for (let y = Math.max(0, center - rowRadius); y <= Math.min(height - 1, center + rowRadius); y += 1) {
@@ -142,7 +148,8 @@ function suppressKnownGuideBands(mask, width, height, options = {}) {
       if (count < width * rowCoverage) continue;
       const distance = rowRadius + 2;
       for (let x = 0; x < width; x += 1) {
-        if (!hasVerticalInk(mask, width, height, x, y, distance)) out[y * width + x] = 0;
+        const index = y * width + x;
+        if (!isStrongInk(index) && !hasVerticalInk(mask, width, height, x, y, distance)) out[index] = 0;
       }
     }
   }
@@ -154,15 +161,16 @@ function suppressKnownGuideBands(mask, width, height, options = {}) {
       if (count < height * columnCoverage) continue;
       const distance = columnRadius + 2;
       for (let y = 0; y < height; y += 1) {
-        if (!hasHorizontalInk(mask, width, height, x, y, distance)) out[y * width + x] = 0;
+        const index = y * width + x;
+        if (!isStrongInk(index) && !hasHorizontalInk(mask, width, height, x, y, distance)) out[index] = 0;
       }
     }
   }
   return out;
 }
 
-function suppressGuideLines(mask, width, height, options = {}) {
-  const knownSuppressed = suppressKnownGuideBands(mask, width, height, options);
+function suppressGuideLines(mask, normalized, localBackground, width, height, options = {}) {
+  const knownSuppressed = suppressKnownGuideBands(mask, normalized, localBackground, width, height, options);
   if (options.suppressGuideLines === false || options.detectLongGuides === false) return knownSuppressed;
   const out = new Uint8Array(knownSuppressed);
   const rowLimit = Math.max(12, Math.floor(width * 0.72));
@@ -182,12 +190,16 @@ function suppressGuideLines(mask, width, height, options = {}) {
   // Remove only thin isolated guide pixels. Intersections with real strokes survive
   // when ink continues at least two pixels perpendicular to the detected line.
   for (const y of rows) for (let x = 0; x < width; x += 1) {
+    const index = y * width + x;
+    const strongInk = normalized && (normalized[index] <= (options.guideInkCap ?? 125) || (localBackground && localBackground[index] - normalized[index] >= (options.guideInkContrast ?? 70)));
     const verticalInk = (y > 1 && knownSuppressed[(y - 2) * width + x]) || (y + 2 < height && knownSuppressed[(y + 2) * width + x]);
-    if (!verticalInk) out[y * width + x] = 0;
+    if (!strongInk && !verticalInk) out[index] = 0;
   }
   for (const x of columns) for (let y = 0; y < height; y += 1) {
+    const index = y * width + x;
+    const strongInk = normalized && (normalized[index] <= (options.guideInkCap ?? 125) || (localBackground && localBackground[index] - normalized[index] >= (options.guideInkContrast ?? 70)));
     const horizontalInk = (x > 1 && knownSuppressed[y * width + x - 2]) || (x + 2 < width && knownSuppressed[y * width + x + 2]);
-    if (!horizontalInk) out[y * width + x] = 0;
+    if (!strongInk && !horizontalInk) out[index] = 0;
   }
   return out;
 }
@@ -207,7 +219,7 @@ function directionalRepair(mask, width, height) {
 }
 
 function runMask(mask, normalized, localBackground, width, height, options, method, extra = {}) {
-  const cleanedGuides = suppressGuideLines(mask, width, height, options);
+  const cleanedGuides = suppressGuideLines(mask, normalized, localBackground, width, height, options);
   const repaired = options.repairStrokes === false ? cleanedGuides : directionalRepair(cleanedGuides, width, height);
   const cleaned = cleanMask(repaired, width, height, { ...options, closeIterations: 0 });
   const rawComponents = connectedComponents(cleaned, width, height, options);
