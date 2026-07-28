@@ -7,7 +7,7 @@
     "start": "node server.mjs",
     "build:runtime": "node scripts/build-runtime.mjs",
     "test": "node tests/runtime-assembly.test.mjs && node tests/recognition-v2.test.mjs && node tests/font-library.test.mjs && node tests/public-library-server.test.mjs && node tests/segmentation.test.mjs && node tests/template.test.mjs && node tests/connection-template.test.mjs && node tests/connection-samples.test.mjs && node tests/connection-scanner.test.mjs && node tests/font-builder.test.mjs && node tests/stage4.test.mjs && node tests/scan-recovery.test.mjs && node tests/cursive.test.mjs && node tests/cursive-anchor-safety.test.mjs && node tests/russian-joining.test.mjs && node tests/russian-entry-paths.test.mjs && node tests/pair-inspector.test.mjs && node tests/contextual-layout.test.mjs && node tests/contextual-cursive.test.mjs",
-    "test:joining": "node tests/russian-joining.test.mjs && node tests/russian-entry-paths.test.mjs && node tests/pair-inspector.test.mjs && node tests/contextual-layout.test.mjs && node tests/contextual-cursive.test.mjs",
+    "test:joining": "node tests/runtime-assembly.test.mjs && node tests/russian-joining.test.mjs && node tests/russian-entry-paths.test.mjs && node tests/pair-inspector.test.mjs && node tests/contextual-layout.test.mjs && node tests/contextual-cursive.test.mjs",
     "test:fonttools": "python tests/validate_generated_font.py && python tests/validate_cursive_font.py",
     "test:joining:fonttools": "node tests/cursive.test.mjs && python tests/validate_cursive_font.py",
     "test:joining:core": "npm run test:joining && npm run test:joining:fonttools",
