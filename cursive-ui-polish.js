@@ -48,7 +48,7 @@ function wrappedPreview() {
   const pieces = items.map((item) => {
     const glyph = glyphByChar.get(item.char);
     if (!glyph) return { item, generated: null, scale: 1, advance: item.char === '\t' ? 72 : 26 };
-    const generated = generateCursiveFormMask(glyph, item.form, cursive, cursive.glyphs[item.char]);
+    const generated = generateCursiveFormMask(glyph, item.contextualForm || item.form, cursive, cursive.glyphs[item.char]);
     const bodyHeight = Math.max(1, generated.baselineY - generated.xHeightY);
     const scale = Math.min(1.75, 82 / bodyHeight);
     const advance = generated.width * scale - (item.connectedRight ? generated.rightPad * scale : 0) + 4;
@@ -148,7 +148,7 @@ function wrappedPreview() {
 
   if (sequence) {
     sequence.textContent = items
-      .map((item) => item.char === '\n' ? '[новая строка]' : /\s/u.test(item.char) ? '[пробел]' : `${item.char}.${item.form}`)
+      .map((item) => item.char === '\n' ? '[новая строка]' : /\s/u.test(item.char) ? '[пробел]' : `${item.char}.${item.contextualForm || item.form}`)
       .join(' → ');
   }
 }
