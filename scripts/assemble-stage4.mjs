@@ -18,6 +18,7 @@ const directSources = [
   'src/cursive-font.js',
   'src/font-library.js',
   'src/public-library-client.js',
+  'src/recognition-v2.js',
   'cursive-app.js',
   'cursive-ui-polish.js',
   'ui-flow.js',
@@ -46,6 +47,65 @@ function validatePartSequence(partsDirectory, parts) {
   return { startNumber, numbers };
 }
 
+function replaceRequired(source, search, replacement, label) {
+  if (!source.includes(search)) throw new Error(`Cannot patch app.js: ${label}`);
+  return source.replace(search, replacement);
+}
+
+function patchRecognitionEngine(sourceBuffer) {
+  let source = sourceBuffer.toString('utf8');
+  source = replaceRequired(
+    source,
+    "} from './src/segmentation.js';",
+    "} from './src/segmentation.js';\nimport { annotateGlyphConfidence, recognizeGrayscale } from './src/recognition-v2.js';",
+    'segmentation import not found',
+  );
+  source = replaceRequired(
+    source,
+    'const analysis = segmentGrayscale(state.grayscale, width, height, currentOptions());',
+    'const analysis = recognizeGrayscale(state.grayscale, width, height, { ...currentOptions(), expectedCount: getCharset().length });',
+    'analysis call not found',
+  );
+  source = replaceRequired(
+    source,
+    "state.labels = state.glyphs.map((_, index) => charset[index] || '');\n  renderGlyphGrid();",
+    "state.labels = state.glyphs.map((_, index) => charset[index] || '');\n  if (state.analysis) state.glyphs = annotateGlyphConfidence(state.glyphs, state.analysis.mask, state.sourceImageData.width, state.sourceImageData.height, state.labels);\n  renderGlyphGrid();",
+    'label assignment not found',
+  );
+  source = replaceRequired(
+    source,
+    'function renderAll() {\n  renderStats();',
+    "function renderAll() {\n  if (state.analysis && state.sourceImageData) state.glyphs = annotateGlyphConfidence(state.glyphs, state.analysis.mask, state.sourceImageData.width, state.sourceImageData.height, state.labels);\n  renderStats();",
+    'renderAll function not found',
+  );
+  source = replaceRequired(
+    source,
+    "const text = `${index + 1}${state.labels[index] ? ` · ${state.labels[index]}` : ''}`;",
+    "const confidence = glyph.confidence?.score;\n    const text = `${index + 1}${state.labels[index] ? ` · ${state.labels[index]}` : ''}${Number.isFinite(confidence) ? ` · ${confidence}%` : ''}`;",
+    'overlay label not found',
+  );
+  source = replaceRequired(
+    source,
+    "meta.innerHTML = `<span>строка ${glyph.row + 1}</span><span>${glyph.width}×${glyph.height}</span>`;",
+    "const confidence = glyph.confidence || { score: 0, level: 'review', reasons: [] };\n    meta.innerHTML = `<span>строка ${glyph.row + 1}</span><span>${glyph.width}×${glyph.height}</span><span class=\"glyph-confidence ${confidence.level}\" title=\"${confidence.reasons.join('. ')}\">${confidence.score}%</span>`;",
+    'glyph metadata not found',
+  );
+  source = replaceRequired(
+    source,
+    "elements.stats.innerHTML = `<span><strong>${state.glyphs.length}</strong> символов</span><span><strong>${rowCount}</strong> строк</span>`;",
+    "const quality = state.analysis?.qualityScore;\n  const method = state.analysis?.method;\n  const reviewCount = state.glyphs.filter(glyph => glyph.confidence?.level !== 'good').length;\n  elements.stats.innerHTML = `<span><strong>${state.glyphs.length}</strong> символов</span><span><strong>${rowCount}</strong> строк</span>${method ? `<span><strong>${method}</strong> метод</span>` : ''}${Number.isFinite(quality) ? `<span><strong>${Math.round(quality)}%</strong> качество</span>` : ''}${reviewCount ? `<span><strong>${reviewCount}</strong> проверить</span>` : ''}`;",
+    'stats rendering not found',
+  );
+  source = replaceRequired(
+    source,
+    "sourceIds: glyph.sourceIds,\n    })),",
+    "sourceIds: glyph.sourceIds,\n      confidence: glyph.confidence || null,\n    })),\n    recognition: { version: state.analysis.recognitionVersion || 1, method: state.analysis.method || 'adaptive', qualityScore: state.analysis.qualityScore ?? null, candidates: state.analysis.candidates || [] },",
+    'manifest glyph export not found',
+  );
+  source += `\nif (!document.querySelector('link[data-dyfr-recognition-v2]')) {\n  const link = document.createElement('link');\n  link.rel = 'stylesheet';\n  link.href = './recognition-v2.css';\n  link.dataset.dyfrRecognitionV2 = '1';\n  document.head.append(link);\n}\n`;
+  return Buffer.from(source, 'utf8');
+}
+
 for (const [partsDirectory, outputPath] of targets) {
   const directory = resolve(root, partsDirectory);
   const parts = (await readdir(directory))
@@ -59,6 +119,7 @@ for (const [partsDirectory, outputPath] of targets) {
   let source;
   try { source = gunzipSync(Buffer.from(encoded, 'base64')); }
   catch (error) { throw new Error(`Cannot assemble ${outputPath} from ${partsDirectory}: ${error.message}`, { cause: error }); }
+  if (outputPath === 'app.js') source = patchRecognitionEngine(source);
   if (outputPath === 'stage4-app.js') {
     source = Buffer.concat([source, Buffer.from(`
 import './stage4-recovery-app.js';
@@ -75,7 +136,12 @@ if (!document.querySelector('link[data-dyfr-cursive]')) {
 }
 `, 'utf8')]);
   }
-  await writeFile(resolve(root, outputPath), source);
+  const output = resolve(root, outputPath);
+  await writeFile(output, source);
+  if (outputPath.endsWith('.js')) {
+    const syntax = spawnSync(process.execPath, ['--check', output], { encoding: 'utf8' });
+    if (syntax.status !== 0) throw new Error(`Syntax check failed for assembled ${outputPath}: ${syntax.stderr || syntax.stdout}`);
+  }
   console.log(`Assembled ${outputPath} (${source.length} bytes, ${parts.length} verified parts, numbering starts at ${startNumber}).`);
 }
 
