@@ -1,9 +1,9 @@
 import {
   DEFAULT_CELL_OPTIONS, UPPER_ACCENT_CHARS, DESCENDER_CHARS, SMALL_PUNCTUATION, TWO_PART_PUNCTUATION,
-  clamp, normalizeGrayRobust, localStatistics, otsuThreshold, maskFromThreshold,
+  clamp, percentile8, normalizeGrayRobust, localStatistics, otsuThreshold, maskFromThreshold,
   backgroundDifferenceMask, sauvolaMask, wolfMask, bridgeShortGaps, closeMaskDirectional,
 } from './base.js';
-import { removeKnownGuides, componentsFromMask, intervalOverlap, intervalGap } from './components.js';
+import { removeKnownGuides, componentsFromMask, mergeNearbyComponents, intervalOverlap, intervalGap } from './components.js';
 
 export function runResidue(mask, width, height) {
   let longRows = 0;
@@ -63,7 +63,7 @@ function keepTemplateComponents(mask, width, height, expectedChar, guides = {}, 
       && xGap <= width * 0.22
       && yGap <= height * 0.18
       && relativeArea >= 0.006;
-    const fragment = xGap <= width * 0.08 && yGap <= height * 0.12 && relativeArea >= 0.012;
+    const fragment = (xGap <= width * 0.08 && yGap <= height * 0.12 && relativeArea >= 0.012);
     const punctuationPart = punctuation && relativeArea >= 0.015 && xGap <= width * 0.35 && yGap <= height * 0.35;
     if (accent || descender || fragment || punctuationPart) kept.push(component);
   }
@@ -164,7 +164,7 @@ export function buildCandidate(gray, width, height, definition, statisticsCache)
     const threshold = otsuThreshold(gray);
     return { mask: maskFromThreshold(gray, threshold, definition.cap), localBackground: new Uint8Array(gray.length).fill(threshold), threshold };
   }
-  const cacheKey = `${definition.type}:${definition.radius}`;
+  const cacheKey = String(definition.radius);
   if (!statisticsCache.has(cacheKey)) statisticsCache.set(cacheKey, localStatistics(gray, width, height, definition.radius));
   const statistics = statisticsCache.get(cacheKey);
   if (definition.type === 'sauvola') return sauvolaMask(gray, width, height, { ...definition, absoluteCap: definition.cap, statistics });
