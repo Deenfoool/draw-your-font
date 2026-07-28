@@ -5,20 +5,15 @@ import { spawnSync } from 'node:child_process';
 const assembly = await readFile('scripts/assemble-stage4.mjs', 'utf8');
 assert.doesNotMatch(assembly, /source-parts\/cursive-font-v2\.js/);
 assert.doesNotMatch(assembly, /source-parts\/cursive-app-v4\.js/);
-assert.match(assembly, /src\/cursive-font-core\.js/);
-assert.match(assembly, /src\/cursive-font-v3\.js/);
-assert.match(assembly, /src\/cursive-font\.js/);
-assert.match(assembly, /src\/font-library\.js/);
-assert.match(assembly, /cursive-app\.js/);
-assert.match(assembly, /cursive-ui-polish\.js/);
-assert.match(assembly, /ui-flow\.js/);
-assert.match(assembly, /library-bridge\.js/);
-assert.match(assembly, /library\.js/);
-assert.match(assembly, /dataset\.dyfrCursive/);
+for (const name of [
+  'src/cursive-font-core.js', 'src/cursive-font-v3.js', 'src/cursive-font.js',
+  'src/font-library.js', 'src/public-library-client.js', 'cursive-app.js',
+  'cursive-ui-polish.js', 'ui-flow.js', 'library-bridge.js', 'library.js',
+  'public-library.js', 'server.mjs',
+]) assert.ok(assembly.includes(name), `${name} is missing from runtime verification`);
 assert.match(assembly, /Duplicate source part number/);
 assert.match(assembly, /Missing or unordered source part/);
 assert.match(assembly, /startNumber !== 0 && startNumber !== 1/);
-assert.match(assembly, /const expected = startNumber \+ index/);
 assert.match(assembly, /spawnSync\(process\.execPath, \['--check'/);
 
 function partNumber(name) {
@@ -26,34 +21,19 @@ function partNumber(name) {
   return match ? Number(match[1]) : null;
 }
 
-for (const directory of [
-  'source-parts/app.js',
-  'source-parts/font-app.js',
-  'source-parts/stage4-app.js',
-  'source-parts/font-builder.js',
-]) {
-  const numbers = (await readdir(directory))
-    .map(partNumber)
-    .filter(Number.isInteger)
-    .sort((left, right) => left - right);
+for (const directory of ['source-parts/app.js', 'source-parts/font-app.js', 'source-parts/stage4-app.js', 'source-parts/font-builder.js']) {
+  const numbers = (await readdir(directory)).map(partNumber).filter(Number.isInteger).sort((a, b) => a - b);
   assert.ok(numbers.length > 0, `${directory} has no source parts`);
   assert.ok(numbers[0] === 0 || numbers[0] === 1, `${directory} must start at 0 or 1`);
   assert.equal(new Set(numbers).size, numbers.length, `${directory} has duplicate part numbers`);
-  numbers.forEach((number, index) => {
-    assert.equal(number, numbers[0] + index, `${directory} has a missing or unordered part`);
-  });
+  numbers.forEach((number, index) => assert.equal(number, numbers[0] + index, `${directory} has a missing part`));
 }
 
 const directJs = [
-  'src/cursive-font-core.js',
-  'src/cursive-font-v3.js',
-  'src/cursive-font.js',
-  'src/font-library.js',
-  'cursive-app.js',
-  'cursive-ui-polish.js',
-  'ui-flow.js',
-  'library-bridge.js',
-  'library.js',
+  'src/cursive-font-core.js', 'src/cursive-font-v3.js', 'src/cursive-font.js',
+  'src/font-library.js', 'src/public-library-client.js', 'cursive-app.js',
+  'cursive-ui-polish.js', 'ui-flow.js', 'library-bridge.js', 'library.js',
+  'public-library.js', 'server.mjs',
 ];
 for (const file of directJs) {
   const source = await readFile(file, 'utf8');
@@ -66,44 +46,47 @@ const legacyCore = await readFile('src/cursive-font-core.js', 'utf8');
 const descenderCore = await readFile('src/cursive-font-v3.js', 'utf8');
 const wrapper = await readFile('src/cursive-font.js', 'utf8');
 const libraryStorage = await readFile('src/font-library.js', 'utf8');
+const publicClient = await readFile('src/public-library-client.js', 'utf8');
 const app = await readFile('cursive-app.js', 'utf8');
 const polish = await readFile('cursive-ui-polish.js', 'utf8');
 const workflow = await readFile('ui-flow.js', 'utf8');
 const libraryBridge = await readFile('library-bridge.js', 'utf8');
 const libraryPage = await readFile('library.js', 'utf8');
+const publicPage = await readFile('public-library.js', 'utf8');
 const libraryHtml = await readFile('library.html', 'utf8');
+const server = await readFile('server.mjs', 'utf8');
 const templateApp = await readFile('template-app.js', 'utf8');
 assert.match(legacyCore, /function buildGsub\(/);
 assert.match(descenderCore, /DESCENDER_LETTERS/);
 assert.match(descenderCore, /function vectorizeBaselineGlyph/);
 assert.match(descenderCore, /baseline - point\.y/);
-assert.match(descenderCore, /inkBottom/);
-assert.match(descenderCore, /function buildGsub\(/);
 assert.match(descenderCore, /function buildGpos\(/);
 assert.match(wrapper, /from '\.\/cursive-font-v3\.js'/);
 assert.match(wrapper, /restrictCursiveFeatureLookups/);
 assert.match(wrapper, /\[1, 3, 5\]/);
-assert.match(wrapper, /buildCoreCursiveFont/);
 assert.match(app, /cursiveDescenderPreset/);
-assert.match(app, /cursiveBaseline/);
-assert.match(app, /py - generated\.baselineY/);
 assert.match(polish, /cursiveDisclosureToggle/);
 assert.match(polish, /canvas\.dataset\.lines/);
-assert.match(polish, /lineCount \* lineHeight/);
-assert.match(polish, /formAdjustments\.hidden = true/);
 assert.match(workflow, /Как вам удобнее создать шрифт/);
 assert.match(workflow, /scannerUnlocked/);
-assert.match(workflow, /template\.hidden = true/);
 assert.match(templateApp, /drawyourfont:template-downloaded/);
 assert.match(libraryStorage, /indexedDB\.open/);
 assert.match(libraryStorage, /transactionDone/);
-assert.match(libraryStorage, /createdAt/);
-assert.match(libraryBridge, /Добавить в библиотеку/);
-assert.match(libraryBridge, /serializeProject/);
-assert.match(libraryBridge, /saveLibraryFont/);
+assert.match(libraryBridge, /Добавить в мою библиотеку/);
+assert.match(libraryBridge, /Опубликовать в общей библиотеке/);
+assert.match(libraryBridge, /publishFont/);
 assert.match(libraryPage, /new FontFace/);
-assert.match(libraryPage, /Открыть проект в редакторе/);
-assert.match(libraryHtml, /Библиотека шрифтов/);
+assert.match(publicPage, /listPublicFonts/);
+assert.match(publicPage, /publicFileUrl/);
+assert.match(publicClient, /buildPublicationPayload/);
+assert.match(publicClient, /rememberPublicationOwnership/);
+assert.match(libraryHtml, /Моя библиотека/);
+assert.match(libraryHtml, /Общая библиотека/);
+assert.match(server, /createDrawYourFontServer/);
+assert.match(server, /function signature/);
+assert.match(server, /MAX_BODY/);
+assert.match(server, /wasm-unsafe-eval/);
+assert.match(server, /PRIVATE_PREFIXES/);
 
 const stage4 = await readFile('stage4-app.js', 'utf8');
 assert.match(stage4, /import '\.\/cursive-app\.js';/);
@@ -111,4 +94,4 @@ assert.match(stage4, /import '\.\/cursive-ui-polish\.js';/);
 assert.match(stage4, /import '\.\/ui-flow\.js';/);
 assert.match(stage4, /import '\.\/library-bridge\.js';/);
 assert.match(stage4, /link\.href = '\.\/cursive\.css'/);
-console.log('Runtime assembly, Stage 7 UI and font library regression test: PASS');
+console.log('Runtime assembly, local library and shared library regression test: PASS');

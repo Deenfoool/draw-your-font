@@ -1,0 +1,21 @@
+[Unit]
+Description=Draw Your Font RU
+After=network.target
+
+[Service]
+Type=simple
+User=drawfont
+Group=drawfont
+WorkingDirectory=/opt/draw-your-font
+EnvironmentFile=/etc/draw-your-font.env
+ExecStart=/usr/bin/node /opt/draw-your-font/server.mjs
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/draw-your-font-data
+
+[Install]
+WantedBy=multi-user.target

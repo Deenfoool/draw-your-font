@@ -17,11 +17,14 @@ const directSources = [
   'src/cursive-font-v3.js',
   'src/cursive-font.js',
   'src/font-library.js',
+  'src/public-library-client.js',
   'cursive-app.js',
   'cursive-ui-polish.js',
   'ui-flow.js',
   'library-bridge.js',
   'library.js',
+  'public-library.js',
+  'server.mjs',
 ];
 
 function partNumber(name) {
@@ -31,25 +34,15 @@ function partNumber(name) {
 
 function validatePartSequence(partsDirectory, parts) {
   if (!parts.length) throw new Error(`No source parts found in ${partsDirectory}`);
-
   const numbers = parts.map((part) => part.number);
   const unique = new Set(numbers);
-  if (unique.size !== numbers.length) {
-    throw new Error(`Duplicate source part number in ${partsDirectory}: ${numbers.join(', ')}`);
-  }
-
+  if (unique.size !== numbers.length) throw new Error(`Duplicate source part number in ${partsDirectory}: ${numbers.join(', ')}`);
   const startNumber = numbers[0];
-  if (startNumber !== 0 && startNumber !== 1) {
-    throw new Error(`Unsupported source part numbering in ${partsDirectory}: expected first part 0 or 1, got ${startNumber}`);
-  }
-
+  if (startNumber !== 0 && startNumber !== 1) throw new Error(`Unsupported source part numbering in ${partsDirectory}: expected first part 0 or 1, got ${startNumber}`);
   for (let index = 0; index < numbers.length; index += 1) {
     const expected = startNumber + index;
-    if (numbers[index] !== expected) {
-      throw new Error(`Missing or unordered source part in ${partsDirectory}: expected ${expected}, got ${numbers[index]}`);
-    }
+    if (numbers[index] !== expected) throw new Error(`Missing or unordered source part in ${partsDirectory}: expected ${expected}, got ${numbers[index]}`);
   }
-
   return { startNumber, numbers };
 }
 
@@ -59,20 +52,13 @@ for (const [partsDirectory, outputPath] of targets) {
     .map((name) => ({ name, number: partNumber(name) }))
     .filter((part) => Number.isInteger(part.number))
     .sort((left, right) => left.number - right.number || left.name.localeCompare(right.name));
-
   const { startNumber } = validatePartSequence(partsDirectory, parts);
   const chunks = await Promise.all(parts.map(({ name }) => readFile(resolve(directory, name), 'utf8')));
   const encoded = chunks.join('').replace(/\s+/g, '');
-  if (!encoded || encoded.length % 4 === 1 || /[^A-Za-z0-9+/=]/.test(encoded)) {
-    throw new Error(`Invalid base64 source stream in ${partsDirectory}`);
-  }
-
+  if (!encoded || encoded.length % 4 === 1 || /[^A-Za-z0-9+/=]/.test(encoded)) throw new Error(`Invalid base64 source stream in ${partsDirectory}`);
   let source;
-  try {
-    source = gunzipSync(Buffer.from(encoded, 'base64'));
-  } catch (error) {
-    throw new Error(`Cannot assemble ${outputPath} from ${partsDirectory}: ${error.message}`, { cause: error });
-  }
+  try { source = gunzipSync(Buffer.from(encoded, 'base64')); }
+  catch (error) { throw new Error(`Cannot assemble ${outputPath} from ${partsDirectory}: ${error.message}`, { cause: error }); }
   if (outputPath === 'stage4-app.js') {
     source = Buffer.concat([source, Buffer.from(`
 import './stage4-recovery-app.js';

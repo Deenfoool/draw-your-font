@@ -1,0 +1,9 @@
+node_modules
+vendor
+data
+.git
+.github
+.tmp-*
+test-results
+playwright-report
+.DS_Store

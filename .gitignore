@@ -1,0 +1,11 @@
+node_modules/
+vendor/
+data/
+.env
+.env.*
+!.env.example
+.tmp-*/
+.tmp-playwright-public/
+test-results/
+playwright-report/
+.DS_Store
