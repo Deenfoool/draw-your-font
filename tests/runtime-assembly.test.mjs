@@ -6,21 +6,22 @@ const assembly = await readFile('scripts/assemble-stage4.mjs', 'utf8');
 assert.doesNotMatch(assembly, /source-parts\/cursive-font-v2\.js/);
 assert.doesNotMatch(assembly, /source-parts\/cursive-app-v4\.js/);
 for (const name of [
+  'src/segmentation.js', 'src/recognition-engine.js', 'src/recognition/base.js', 'src/recognition/components.js', 'src/recognition/select.js', 'src/recognition/template.js', 'src/scan-recovery.js',
   'src/cursive-font-core.js', 'src/cursive-font-v3.js', 'src/cursive-font.js',
-  'src/font-library.js', 'src/public-library-client.js', 'cursive-app.js',
-  'cursive-ui-polish.js', 'ui-flow.js', 'library-bridge.js', 'library.js',
-  'public-library.js', 'server.mjs',
+  'src/font-library.js', 'src/public-library-client.js', 'stage4-recovery-app.js',
+  'recognition-quality-ui.js', 'cursive-app.js', 'cursive-ui-polish.js',
+  'ui-flow.js', 'library-bridge.js', 'library.js', 'public-library.js', 'server.mjs',
 ]) assert.ok(assembly.includes(name), `${name} is missing from runtime verification`);
 assert.match(assembly, /Duplicate source part number/);
 assert.match(assembly, /Missing or unordered source part/);
 assert.match(assembly, /startNumber !== 0 && startNumber !== 1/);
 assert.match(assembly, /spawnSync\(process\.execPath, \['--check'/);
+assert.match(assembly, /recognition\.css/);
 
 function partNumber(name) {
   const match = /^(\d+)(?:\.gz\.b64|\.txt)$/.exec(name);
   return match ? Number(match[1]) : null;
 }
-
 for (const directory of ['source-parts/app.js', 'source-parts/font-app.js', 'source-parts/stage4-app.js', 'source-parts/font-builder.js']) {
   const numbers = (await readdir(directory)).map(partNumber).filter(Number.isInteger).sort((a, b) => a - b);
   assert.ok(numbers.length > 0, `${directory} has no source parts`);
@@ -30,10 +31,11 @@ for (const directory of ['source-parts/app.js', 'source-parts/font-app.js', 'sou
 }
 
 const directJs = [
+  'src/segmentation.js', 'src/recognition-engine.js', 'src/recognition/base.js', 'src/recognition/components.js', 'src/recognition/select.js', 'src/recognition/template.js', 'src/scan-recovery.js',
   'src/cursive-font-core.js', 'src/cursive-font-v3.js', 'src/cursive-font.js',
-  'src/font-library.js', 'src/public-library-client.js', 'cursive-app.js',
-  'cursive-ui-polish.js', 'ui-flow.js', 'library-bridge.js', 'library.js',
-  'public-library.js', 'server.mjs',
+  'src/font-library.js', 'src/public-library-client.js', 'stage4-recovery-app.js',
+  'recognition-quality-ui.js', 'cursive-app.js', 'cursive-ui-polish.js',
+  'ui-flow.js', 'library-bridge.js', 'library.js', 'public-library.js', 'server.mjs',
 ];
 for (const file of directJs) {
   const source = await readFile(file, 'utf8');
@@ -41,6 +43,26 @@ for (const file of directJs) {
   const check = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
   assert.equal(check.status, 0, `${file} syntax error: ${check.stderr}`);
 }
+
+const recognition = [
+  await readFile('src/recognition-engine.js', 'utf8'),
+  await readFile('src/recognition/base.js', 'utf8'),
+  await readFile('src/recognition/components.js', 'utf8'),
+  await readFile('src/recognition/select.js', 'utf8'),
+  await readFile('src/recognition/template.js', 'utf8'),
+].join('\n');
+const segmentation = await readFile('src/segmentation.js', 'utf8');
+const recovery = await readFile('src/scan-recovery.js', 'utf8');
+const qualityUi = await readFile('recognition-quality-ui.js', 'utf8');
+assert.match(recognition, /function sauvolaMask/);
+assert.match(recognition, /function wolfMask/);
+assert.match(recognition, /function otsuThreshold/);
+assert.match(recognition, /selectBestGlyphMask/);
+assert.match(recognition, /extractTemplateGlyphsV2/);
+assert.match(recognition, /removeKnownGuides/);
+assert.match(segmentation, /selectBestPageSegmentation/);
+assert.match(recovery, /recognitionVersion: 2/);
+assert.match(qualityUi, /Recognition Engine 2\.0/);
 
 const legacyCore = await readFile('src/cursive-font-core.js', 'utf8');
 const descenderCore = await readFile('src/cursive-font-v3.js', 'utf8');
@@ -89,9 +111,12 @@ assert.match(server, /wasm-unsafe-eval/);
 assert.match(server, /PRIVATE_PREFIXES/);
 
 const stage4 = await readFile('stage4-app.js', 'utf8');
+assert.match(stage4, /import '\.\/stage4-recovery-app\.js';/);
+assert.match(stage4, /import '\.\/recognition-quality-ui\.js';/);
 assert.match(stage4, /import '\.\/cursive-app\.js';/);
 assert.match(stage4, /import '\.\/cursive-ui-polish\.js';/);
 assert.match(stage4, /import '\.\/ui-flow\.js';/);
 assert.match(stage4, /import '\.\/library-bridge\.js';/);
-assert.match(stage4, /link\.href = '\.\/cursive\.css'/);
-console.log('Runtime assembly, local library and shared library regression test: PASS');
+assert.match(stage4, /recognition\.css/);
+assert.match(stage4, /cursive\.css/);
+console.log('Runtime assembly, Recognition Engine 2.0 and libraries regression test: PASS');
