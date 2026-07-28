@@ -81,7 +81,7 @@ export function generateRussianContextualFormMask(glyph, form = 'isol', cursive 
   const selectedExit = glyphConfig.exitVariants?.[targetClass] || glyphConfig.exit || {};
   const rightExternalRatio = targetClass === 'none'
     ? resolveConnectionRatio(metrics, 'middle', { fallback: cursive.connectionY ?? 0.76 })
-    : clamp(selectedExit.y ?? resolveConnectionRatio(metrics, targetClass), metrics.xHeightRatio, metrics.baselineRatio - 0.01);
+    : clamp(selectedExit.y ?? resolveConnectionRatio(metrics, targetClass), metrics.capRatio + 0.01, metrics.baselineRatio - 0.01);
   const leftExternalY = leftExternalRatio * sourceLast;
   const rightExternalY = rightExternalRatio * sourceLast;
   const radius = clamp(cursive.thickness ?? 2.2, 1, 8) / 2;
