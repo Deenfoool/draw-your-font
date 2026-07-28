@@ -51,7 +51,7 @@ function wrappedPreview() {
     const generated = generateCursiveFormMask(glyph, item.contextualForm || item.form, cursive, cursive.glyphs[item.char]);
     const bodyHeight = Math.max(1, generated.baselineY - generated.xHeightY);
     const scale = Math.min(1.75, 82 / bodyHeight);
-    const advance = generated.width * scale - (item.connectedRight ? generated.rightPad * scale : 0) + 4;
+    const advance = item.connectedRight ? (generated.width - 1) * scale : generated.width * scale + 4;
     return { item, generated, scale, advance };
   });
 
