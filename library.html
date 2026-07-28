@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Локальная библиотека шрифтов Draw Your Font RU.">
+  <meta name="description" content="Личная и общая библиотека шрифтов Draw Your Font RU.">
   <title>Библиотека шрифтов · Draw Your Font RU</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="library.css">
@@ -13,53 +13,81 @@
     <div>
       <p class="eyebrow">Draw Your Font RU</p>
       <h1>Библиотека шрифтов</h1>
-      <p class="subtitle">Все файлы и проекты хранятся только в этом браузере и не отправляются на сервер.</p>
+      <p class="subtitle">Личная библиотека хранится в вашем браузере. Общая библиотека находится на сервере и видна всем посетителям сайта.</p>
     </div>
     <a class="library-back" href="./index.html">← Вернуться в редактор</a>
   </header>
 
   <main class="library-page">
-    <section class="card library-overview">
-      <div>
-        <p class="eyebrow">Локальное хранилище</p>
-        <h2 id="libraryCount">Загрузка…</h2>
-        <p id="libraryStorage">Проверяю доступное место.</p>
-      </div>
-      <button class="secondary-button" id="libraryPersist" type="button">Защитить от автоочистки</button>
-    </section>
+    <nav class="card library-tabs" role="tablist" aria-label="Раздел библиотеки">
+      <button class="library-tab is-active" data-tab="local" type="button" role="tab" aria-selected="true">
+        <strong>Моя библиотека</strong><span>Только этот браузер</span>
+      </button>
+      <button class="library-tab" data-tab="public" type="button" role="tab" aria-selected="false">
+        <strong>Общая библиотека</strong><span>Доступна всем посетителям</span>
+      </button>
+    </nav>
 
-    <section class="card library-controls">
-      <label>
-        <span>Поиск</span>
-        <input id="librarySearch" type="search" placeholder="Название или начертание">
-      </label>
-      <label>
-        <span>Сортировка</span>
-        <select id="librarySort">
+    <section id="localLibraryPanel">
+      <section class="card library-overview">
+        <div>
+          <p class="eyebrow">Локальное хранилище</p>
+          <h2 id="libraryCount">Загрузка…</h2>
+          <p id="libraryStorage">Проверяю доступное место.</p>
+        </div>
+        <button class="secondary-button" id="libraryPersist" type="button">Защитить от автоочистки</button>
+      </section>
+
+      <section class="card library-controls">
+        <label><span>Поиск</span><input id="librarySearch" type="search" placeholder="Название или начертание"></label>
+        <label><span>Сортировка</span><select id="librarySort">
           <option value="updated-desc">Сначала новые</option>
           <option value="updated-asc">Сначала старые</option>
           <option value="name-asc">По названию А–Я</option>
           <option value="name-desc">По названию Я–А</option>
-        </select>
-      </label>
-      <label class="library-preview-control">
-        <span>Текст предпросмотра</span>
-        <textarea id="libraryPreviewText" rows="2">Съешь же ещё этих мягких французских булок, да выпей чаю. Дрожь, щука, цифра.</textarea>
-      </label>
+        </select></label>
+        <label class="library-preview-control"><span>Текст предпросмотра</span><textarea id="libraryPreviewText" rows="2">Съешь же ещё этих мягких французских булок, да выпей чаю. Дрожь, щука, цифра.</textarea></label>
+      </section>
+
+      <p class="library-status" id="libraryStatus" data-mode="idle">Открываю мою библиотеку…</p>
+      <section class="library-grid" id="libraryGrid" aria-live="polite"></section>
     </section>
 
-    <p class="library-status" id="libraryStatus" data-mode="idle">Открываю библиотеку…</p>
-    <section class="library-grid" id="libraryGrid" aria-live="polite"></section>
+    <section id="publicLibraryPanel" hidden>
+      <section class="card library-overview public-library-overview">
+        <div>
+          <p class="eyebrow">Серверное хранилище</p>
+          <h2 id="publicLibraryCount">Общая библиотека</h2>
+          <p>Здесь отображаются шрифты, которые авторы добровольно опубликовали для всех.</p>
+        </div>
+        <button class="secondary-button" id="publicLibraryRefresh" type="button">Обновить каталог</button>
+      </section>
+
+      <section class="card library-controls">
+        <label><span>Поиск</span><input id="publicLibrarySearch" type="search" placeholder="Название, автор или описание"></label>
+        <label><span>Сортировка</span><select id="publicLibrarySort">
+          <option value="updated-desc">Сначала новые</option>
+          <option value="updated-asc">Сначала старые</option>
+          <option value="name-asc">По названию А–Я</option>
+          <option value="name-desc">По названию Я–А</option>
+        </select></label>
+        <label class="library-preview-control"><span>Текст предпросмотра</span><textarea id="publicLibraryPreviewText" rows="2">Съешь же ещё этих мягких французских булок, да выпей чаю. Дрожь, щука, цифра.</textarea></label>
+      </section>
+
+      <p class="library-status" id="publicLibraryStatus" data-mode="idle">Откройте вкладку, чтобы загрузить общий каталог.</p>
+      <section class="library-grid" id="publicLibraryGrid" aria-live="polite"></section>
+    </section>
   </main>
 
   <template id="libraryEmptyTemplate">
     <div class="card library-empty">
-      <strong>Библиотека пока пуста</strong>
-      <p>Соберите шрифт в редакторе и нажмите «Добавить в библиотеку».</p>
+      <strong>Моя библиотека пока пуста</strong>
+      <p>Соберите шрифт в редакторе и нажмите «Добавить в мою библиотеку».</p>
       <a class="primary-button" href="./index.html">Создать первый шрифт</a>
     </div>
   </template>
 
   <script type="module" src="library.js"></script>
+  <script type="module" src="public-library.js"></script>
 </body>
 </html>
