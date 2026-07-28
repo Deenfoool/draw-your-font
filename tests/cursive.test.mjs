@@ -52,7 +52,7 @@ function glyph(char, seed = 0) {
   };
 }
 
-const characters = ['м','а','т','д','р','у','ф','щ','ц','о','ж','ь','А'];
+const characters = [...'абвгдеёжзийклмнопрстуфхцчшщъыьэюя', 'А'];
 const project = {
   format: 'draw-your-font-project',
   version: 4,
@@ -82,8 +82,8 @@ assert.ok(stretched.height > originalHeight, 'descender scaling must increase ca
 assert.equal(Math.round(stretched.baselineY), Math.round(rIsolated.baselineY), 'baseline must stay fixed when descender grows');
 rConfig.descenderScale = 1;
 
-const medial = generateCursiveFormMask(project.glyphs[0], 'medi', cursive, cursive.glyphs.м);
-assert.ok(medial.width > project.glyphs[0].width);
+const medial = generateCursiveFormMask(project.glyphs.find((item) => item.char === 'м'), 'medi', cursive, cursive.glyphs.м);
+assert.ok(medial.width > project.glyphs.find((item) => item.char === 'м').width);
 assert.ok(medial.mask[Math.round(medial.leftExternalY) * medial.width], 'entry stroke must reach the left boundary');
 assert.ok(medial.mask[Math.round(medial.rightExternalY) * medial.width + medial.width - 1], 'exit stroke must reach the right boundary');
 assert.deepEqual(simulateCursiveForms('мама', project).map(({ form }) => form), ['init', 'medi', 'medi', 'fina']);
