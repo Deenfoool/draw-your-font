@@ -29,6 +29,7 @@ const directSources = [
   'src/recognition-v2.js',
   'cursive-app.js',
   'connection-template-app.js',
+  'pair-inspector-app.js',
   'cursive-ui-polish.js',
   'ui-flow.js',
   'library-bridge.js',
@@ -134,6 +135,7 @@ for (const [partsDirectory, outputPath] of targets) {
 import './stage4-recovery-app.js';
 import './cursive-app.js';
 import './cursive-ui-polish.js';
+import './pair-inspector-app.js';
 import './ui-flow.js';
 import './library-bridge.js';
 if (!document.querySelector('link[data-dyfr-cursive]')) {
