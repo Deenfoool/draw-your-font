@@ -15,11 +15,21 @@ const targets = [
 const directSources = [
   'src/cursive-font-core.js',
   'src/cursive-font-v3.js',
+  'src/russian-joining.js',
+  'src/russian-entry-paths.js',
+  'src/contextual-cursive-mask.js',
+  'src/opentype-contextual-layout.js',
+  'src/contextual-cursive-font.js',
   'src/cursive-font.js',
+  'src/pair-inspector.js',
+  'src/connection-template.js',
+  'src/connection-template-scanner.js',
   'src/font-library.js',
   'src/public-library-client.js',
   'src/recognition-v2.js',
   'cursive-app.js',
+  'connection-template-app.js',
+  'pair-inspector-app.js',
   'cursive-ui-polish.js',
   'ui-flow.js',
   'library-bridge.js',
@@ -125,6 +135,7 @@ for (const [partsDirectory, outputPath] of targets) {
 import './stage4-recovery-app.js';
 import './cursive-app.js';
 import './cursive-ui-polish.js';
+import './pair-inspector-app.js';
 import './ui-flow.js';
 import './library-bridge.js';
 if (!document.querySelector('link[data-dyfr-cursive]')) {
