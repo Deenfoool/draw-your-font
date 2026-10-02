@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Deenfoool/portfolio/main/schemas/project.schema.json",
+  "version": 1,
+  "title": "Draw Your Font RU",
+  "tagline": "Рукописный шрифт из фотографии или заполненного шаблона",
+  "kind": "web",
+  "status": "active",
+  "featured": true,
+  "tags": ["JavaScript", "Fonts", "TTF", "WOFF", "WOFF2"],
+  "primaryAction": {
+    "type": "website",
+    "label": "Открыть сайт",
+    "source": "github-pages"
+  }
+}
