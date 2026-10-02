@@ -1,0 +1,85 @@
+name: Stage 11 Russian Joining
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - stage-11-russian-school-joining
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/cursive-font.js'
+      - 'src/cursive-font-v3.js'
+      - 'src/contextual-cursive-font.js'
+      - 'src/contextual-cursive-mask.js'
+      - 'src/opentype-contextual-layout.js'
+      - 'src/russian-entry-paths.js'
+      - 'src/russian-joining.js'
+      - 'src/pair-inspector.js'
+      - 'cursive-app.js'
+      - 'pair-inspector-app.js'
+      - 'pair-inspector.css'
+      - 'scripts/assemble-stage4.mjs'
+      - 'scripts/build-runtime.mjs'
+      - 'tests/cursive.test.mjs'
+      - 'tests/contextual-cursive.test.mjs'
+      - 'tests/contextual-layout.test.mjs'
+      - 'tests/pair-inspector.test.mjs'
+      - 'tests/russian-entry-paths.test.mjs'
+      - 'tests/russian-joining.test.mjs'
+      - 'tests/validate_cursive_font.py'
+      - 'tests/cross-browser/russian-joining.spec.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/stage11-joining.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stage11-joining-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Grammar, OpenType and browsers
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout working branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install JavaScript dependencies
+        run: npm ci
+
+      - name: Install FontTools and HarfBuzz bindings
+        run: python -m pip install --upgrade fonttools uharfbuzz
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Validate Stage 11
+        run: npm run test:joining:all
+
+      - name: Upload browser traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage11-playwright-traces
+          path: test-results
+          if-no-files-found: ignore
+          retention-days: 7
